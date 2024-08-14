@@ -145,7 +145,7 @@ class Plane_E : public Plane
         double slack_optimizer();
         void move_and_propagate(Inst*,Point);
         void set_and_propagate(Inst*, Point);
-        void unit_move_and_propagate(Inst*,std::string);  //"UP" "DOWN" "LEFT" "RIGHT"
+        void unit_move_and_propagate(Inst*,std::string,int);  //"UP" "DOWN" "LEFT" "RIGHT"
         void propagate(Inst*);
         
         void reduce_high_util_pin_weight();

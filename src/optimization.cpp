@@ -37,7 +37,7 @@ void Plane_E::set_and_propagate(Inst* cur, Point loc)
     positive_slack += d_slack[1];
 }
 
-void Plane_E::unit_move_and_propagate(Inst* cur,string dir)  //"UP" "DOWN" "LEFT" "RIGHT"
+void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DOWN" "LEFT" "RIGHT"
 {
     int y_idx  = 0;
     Point curp = cur->LeftDown();
@@ -64,41 +64,52 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir)  //"UP" "DOWN" "LEFT
     {
         if(PlacementRows.size()-1 == y_idx)
             return;
-        newP.y = PlacementRows[y_idx+1].left_down.y;
-        int x_idx = (curp.x - PlacementRows[y_idx+1].left_down.x ) / PlacementRows[y_idx+1].siteWidth;
-        if(curp.x - PlacementRows[y_idx+1].left_down.x - x_idx * PlacementRows[y_idx+1].siteWidth >= PlacementRows[y_idx+1].siteWidth/2)
+        if(y_idx+step >= PlacementRows.size())
+            y_idx = PlacementRows.size() - step - 1;
+        newP.y = PlacementRows[y_idx+step].left_down.y;
+        int x_idx = (curp.x - PlacementRows[y_idx+step].left_down.x ) / PlacementRows[y_idx+step].siteWidth;
+        if(curp.x - PlacementRows[y_idx+step].left_down.x - x_idx * PlacementRows[y_idx+step].siteWidth >= PlacementRows[y_idx+step].siteWidth/2)
             x_idx++;
-        if(x_idx == PlacementRows[y_idx-1].count)
+        if(x_idx == PlacementRows[y_idx+step].count)
             x_idx--;
-        newP.x = PlacementRows[y_idx+1].left_down.x + x_idx * PlacementRows[y_idx-1].siteWidth;
+        newP.x = PlacementRows[y_idx+step].left_down.x + x_idx * PlacementRows[y_idx+step].siteWidth;
     }
     else if(dir == "DOWN")
     {
         if(0 == y_idx)
             return;
-        newP.y = PlacementRows[y_idx-1].left_down.y;
-        int x_idx = (curp.x - PlacementRows[y_idx-1].left_down.x ) / PlacementRows[y_idx-1].siteWidth;
-        if(curp.x - PlacementRows[y_idx-1].left_down.x - x_idx * PlacementRows[y_idx-1].siteWidth >= PlacementRows[y_idx-1].siteWidth/2)
+        if(y_idx-step < 0)
+            y_idx = step;
+        newP.y = PlacementRows[y_idx-step].left_down.y;
+        int x_idx = (curp.x - PlacementRows[y_idx-step].left_down.x ) / PlacementRows[y_idx-step].siteWidth;
+        if(curp.x - PlacementRows[y_idx-step].left_down.x - x_idx * PlacementRows[y_idx-step].siteWidth >= PlacementRows[y_idx-step].siteWidth/2)
             x_idx++;
-        if(x_idx == PlacementRows[y_idx-1].count)
+        if(x_idx == PlacementRows[y_idx-step].count)
             x_idx--;
-        newP.x = PlacementRows[y_idx-1].left_down.x + x_idx * PlacementRows[y_idx-1].siteWidth;
+        newP.x = PlacementRows[y_idx-step].left_down.x + x_idx * PlacementRows[y_idx-step].siteWidth;
     }
     else if(dir == "LEFT")
     {
         int x_idx = (curp.x - PlacementRows[y_idx].left_down.x ) / PlacementRows[y_idx].siteWidth;
-        if(x_idx <= 0)
+        if(x_idx == 0)
             return;
-        x_idx--;
+        if(x_idx - step <= 0)
+            x_idx = 0;
+        else
+            x_idx -= step;
         newP.y = PlacementRows[y_idx].left_down.y;
         newP.x = PlacementRows[y_idx].left_down.x + PlacementRows[y_idx].siteWidth * x_idx;
     }
     else
     {
         int x_idx = (curp.x - PlacementRows[y_idx].left_down.x ) / PlacementRows[y_idx].siteWidth;
-        if(x_idx >= PlacementRows[y_idx].count)
+        if(x_idx == PlacementRows[y_idx].count)
             return;
-        x_idx--;
+        
+        if(x_idx + step >= PlacementRows[y_idx].count)
+            x_idx = PlacementRows[y_idx].count - 1;
+        else
+            x_idx += step;
         newP.y = PlacementRows[y_idx].left_down.y;
         newP.x = PlacementRows[y_idx].left_down.x + PlacementRows[y_idx].siteWidth * x_idx;
     }
