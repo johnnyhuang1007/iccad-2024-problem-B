@@ -1,0 +1,357 @@
+#include "Plane_extension.h"
+#include <fstream>
+#include<iomanip>
+#define u_map_itr(T) unordered_map<std::string,T>::const_iterator
+using namespace std;
+
+void Plane_E::move_and_propagate(Inst* cur, Point movement)
+{
+    min_util(cur);
+    cur->set_new_loc(cur->LeftDown() + movement);
+    add_util(cur);
+    vector<double> d_slack{0,0};
+    for(int i = 0 ; i < cur->INs.size() ; i++)
+    {
+        vector<double> tmp = cur->INs[i]->slack_propagation();
+        d_slack[0] += tmp[0];
+        d_slack[1] += tmp[1];
+    }
+    negative_slack += d_slack[0];
+    positive_slack += d_slack[1];
+}
+
+
+void Plane_E::set_and_propagate(Inst* cur, Point loc)
+{
+    min_util(cur);
+    cur->set_new_loc(loc);
+    add_util(cur);
+    vector<double> d_slack{0,0};
+    for(int i = 0 ; i < cur->INs.size() ; i++)
+    {
+        vector<double> tmp = cur->INs[i]->slack_propagation();
+        d_slack[0] += tmp[0];
+        d_slack[1] += tmp[1];
+    }
+    negative_slack += d_slack[0];
+    positive_slack += d_slack[1];
+}
+
+void Plane_E::unit_move_and_propagate(Inst* cur,string dir)  //"UP" "DOWN" "LEFT" "RIGHT"
+{
+    int y_idx  = 0;
+    Point curp = cur->LeftDown();
+    if(curp.y >= PlacementRows.back().left_down.y)
+        y_idx = PlacementRows.size()-2;
+    else if(curp.y <= PlacementRows[0].left_down.y)
+        y_idx = 0;
+    else
+    {
+        int move = (PlacementRows.size()+1)/2;
+
+        while(!(PlacementRows[y_idx].left_down.y <= curp.y && PlacementRows[y_idx+1].left_down.y < curp.y))
+        {
+            if(PlacementRows[y_idx].left_down.y > curp.y)
+                y_idx -= move;
+            else
+                y_idx += move;
+            move = (move+1)/2;
+        }
+    }
+
+    Point newP;
+    if(dir == "UP")
+    {
+        if(PlacementRows.size()-1 == y_idx)
+            return;
+        newP.y = PlacementRows[y_idx+1].left_down.y;
+        int x_idx = (curp.x - PlacementRows[y_idx+1].left_down.x ) / PlacementRows[y_idx+1].siteWidth;
+        if(curp.x - PlacementRows[y_idx+1].left_down.x - x_idx * PlacementRows[y_idx+1].siteWidth >= PlacementRows[y_idx+1].siteWidth/2)
+            x_idx++;
+        if(x_idx == PlacementRows[y_idx-1].count)
+            x_idx--;
+        newP.x = PlacementRows[y_idx+1].left_down.x + x_idx * PlacementRows[y_idx-1].siteWidth;
+    }
+    else if(dir == "DOWN")
+    {
+        if(0 == y_idx)
+            return;
+        newP.y = PlacementRows[y_idx-1].left_down.y;
+        int x_idx = (curp.x - PlacementRows[y_idx-1].left_down.x ) / PlacementRows[y_idx-1].siteWidth;
+        if(curp.x - PlacementRows[y_idx-1].left_down.x - x_idx * PlacementRows[y_idx-1].siteWidth >= PlacementRows[y_idx-1].siteWidth/2)
+            x_idx++;
+        if(x_idx == PlacementRows[y_idx-1].count)
+            x_idx--;
+        newP.x = PlacementRows[y_idx-1].left_down.x + x_idx * PlacementRows[y_idx-1].siteWidth;
+    }
+    else if(dir == "LEFT")
+    {
+        int x_idx = (curp.x - PlacementRows[y_idx].left_down.x ) / PlacementRows[y_idx].siteWidth;
+        if(x_idx <= 0)
+            return;
+        x_idx--;
+        newP.y = PlacementRows[y_idx].left_down.y;
+        newP.x = PlacementRows[y_idx].left_down.x + PlacementRows[y_idx].siteWidth * x_idx;
+    }
+    else
+    {
+        int x_idx = (curp.x - PlacementRows[y_idx].left_down.x ) / PlacementRows[y_idx].siteWidth;
+        if(x_idx >= PlacementRows[y_idx].count)
+            return;
+        x_idx--;
+        newP.y = PlacementRows[y_idx].left_down.y;
+        newP.x = PlacementRows[y_idx].left_down.x + PlacementRows[y_idx].siteWidth * x_idx;
+    }
+
+
+    min_util(cur);
+    cur->set_new_loc(newP);
+    add_util(cur);
+    vector<double> d_slack{0,0};
+    for(int i = 0 ; i < cur->INs.size() ; i++)
+    {
+        vector<double> tmp = cur->INs[i]->slack_propagation();
+        d_slack[0] += tmp[0];
+        d_slack[1] += tmp[1];
+    }
+    negative_slack += d_slack[0];
+    positive_slack += d_slack[1];
+}
+
+
+void Plane_E::propagate(Inst* cur)  
+{
+    
+}
+
+void Plane_E::sequence_finder()
+{
+    for(int i = 0 ; i < FF_list_bank.size() ; i++)
+    {
+        sequence_finder(FF_list_bank[i]);
+    }
+}
+
+void Plane_E::sequence_finder(Inst* FF)
+{
+    
+}
+
+
+double Plane_E::set_on_site()
+{
+    for(Inst* FF:FF_list_bank)
+    {
+        set_and_propagate(FF,closest_Legal_locs(FF->LeftDown()));
+    }
+    return negative_slack;
+}
+
+double collect_error = 0;
+double Plane_E::slack_optimizer()
+{
+    //cout<<"INITIAL SLACK: "<<slack<<endl;
+    bool check1 = 0,check2 = 0;
+    double prev_n_slack = negative_slack;
+    double prev_p_slack = positive_slack;
+    double T_val = (prev_p_slack - prev_n_slack)*(prev_p_slack - prev_n_slack);
+    vector<Point> movements;
+    movements.reserve(FF_list_bank.size());
+    int check = rand()%FF_list_bank.size();
+    for(int i = 0 ; i < FF_list_bank.size() ; i++)
+    { 
+        double stage_ = negative_slack;
+        prev_n_slack = negative_slack;
+        move_and_propagate(FF_list_bank[i],Point(PlacementRows[0].siteHeight,0));
+        if(0.0 < prev_n_slack - negative_slack)
+        {
+            move_and_propagate(FF_list_bank[i],Point(-2.0*PlacementRows[0].siteHeight,0));
+            if(0.0 < prev_n_slack -negative_slack)
+            {
+                move_and_propagate(FF_list_bank[i],Point(PlacementRows[0].siteHeight,0));
+                check1 = 1;
+            }
+        }
+        prev_n_slack = negative_slack;
+        move_and_propagate(FF_list_bank[i],Point(0,PlacementRows[0].siteWidth));
+        if(0.0 < prev_n_slack - negative_slack)
+        {
+            move_and_propagate(FF_list_bank[i],Point(0,-2.0*PlacementRows[0].siteWidth));
+            if(0.0 < prev_n_slack - negative_slack)
+            {
+                move_and_propagate(FF_list_bank[i],Point(0,PlacementRows[0].siteWidth));
+                check2 = 1;
+            }
+        }
+        
+        if(check1 && check2 && abs(stage_ - negative_slack) > 0.000001)
+        {
+            collect_error += stage_ - negative_slack;
+            cout<<abs(stage_ - negative_slack)<<endl;
+            exit(0);
+        }
+        check1 = 0;
+        check2 = 0;
+        //cout<<"prev_n_slack  "<<prev_n_slack<<endl<<endl;
+    }
+    
+    if(collect_error > 0.0001)
+    {
+        for(int i = 0 ; i < FF_list_bank.size() ; i++)
+        {
+            for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+                FF_list_bank[i]->INs[j]->arrival_time = 0;
+            
+        }
+        for(int i = 0 ; i < FF_list_bank.size() ; i++)
+        {
+            for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+                FF_list_bank[i]->INs[j]->slack_propagation();
+        }
+        collect_error = 0;
+    }
+    if(collect_error > 0.0001)
+    {
+        cout<<"COLLECTED ERROR: "<<collect_error <<endl;
+        exit(0);
+    }
+    cout<<negative_slack<<endl;
+    cout<<positive_slack<<endl<<endl;
+    return negative_slack;
+}
+
+bool isnan(Point p)
+{
+    return (p.x != p.x) || (p.y != p.y);
+}
+
+double Plane_E::HPWL_optimizer(double WEIGHT)
+{
+
+    for(int i = 0 ; i < FF_list_bank.size() ; i++)
+    {
+        for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+        {
+            if(FF_list_bank[i]->INs[j]->slack < 0)
+            {
+                for(Pin* cur: FF_list_bank[i]->INs[j]->path_seq)
+                {
+                    cur->critical_weight -= FF_list_bank[i]->INs[j]->slack/(-negative_slack+0.0000001) * WEIGHT;
+                }
+            }
+        }
+    }
+
+    for(int i = 0 ; i < FF_list_bank.size() ; i++)
+    {
+        for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+        {
+            FF_list_bank[i]->INs[j]->belong_net->set_weight_center();
+        }
+        for(int j = 0 ; j < FF_list_bank[i]->OUTs.size() ; j++)
+        {
+            FF_list_bank[i]->OUTs[j]->belong_net->set_weight_center();
+        }
+        Point P(0,0);
+        double Px = 0;
+        double Py = 0;
+        double wgt = 0;
+        for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+        {
+            if(FF_list_bank[i]->INs[j]->belong_net->FROMs.size()==0)
+                continue;
+            Px = Px + FF_list_bank[i]->INs[j]->belong_net->center_of_FROMs.x * FF_list_bank[i]->INs[j]->belong_net->FROMs_weight;
+            Py = Py + FF_list_bank[i]->INs[j]->belong_net->center_of_FROMs.y * FF_list_bank[i]->INs[j]->belong_net->FROMs_weight;
+            wgt += FF_list_bank[i]->INs[j]->belong_net->FROMs_weight;
+        }
+        for(int j = 0 ; j < FF_list_bank[i]->OUTs.size()  ; j++)
+        {
+            if(FF_list_bank[i]->OUTs[j]->belong_net->TOs.size()==0)
+                continue;
+            Px = Px + FF_list_bank[i]->OUTs[j]->belong_net->center_of_TOs.x * FF_list_bank[i]->OUTs[j]->belong_net->TOs_weight;
+            Py = Py + FF_list_bank[i]->OUTs[j]->belong_net->center_of_TOs.y * FF_list_bank[i]->OUTs[j]->belong_net->TOs_weight;
+            wgt += FF_list_bank[i]->OUTs[j]->belong_net->TOs_weight;
+        }
+        P.x = Px/wgt;
+        P.y = Py/wgt;
+        if(wgt <= 0)
+            continue;
+        move_and_propagate(FF_list_bank[i],P - FF_list_bank[i]->LeftDown());   
+    }
+    
+
+
+    cout<<"negative_slack   "<<negative_slack<<endl;
+    cout<<"positive_slack   "<<positive_slack<<endl;
+    cout<<"COST "<<cost()<<endl;
+    cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+    cout<<endl;
+    return 0;
+}
+
+void Plane_E::set_to_placementRow()
+{
+
+    
+    for(int i = 0 ; i <FF_list_bank.size() ; i++)
+    {
+        vector<double> d_slack{0,0};
+        set_to_placementRow(FF_list_bank[i]);
+        for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+        {
+            vector<double> tmp = FF_list_bank[i]->INs[j]->slack_propagation();
+            d_slack[0] += tmp[0];
+            d_slack[1] += tmp[1];
+        }
+        negative_slack += d_slack[0];
+        positive_slack += d_slack[1];
+    }
+    
+    cout<<negative_slack<<endl;
+}
+
+void Plane_E::set_to_placementRow(Inst* cur)
+{
+    int curidx = 0;
+    Point newPoint(0,0);
+    for(int i = 0 ; i < PlacementRows.size()-1 ; i++)
+    {
+        curidx = i;
+        if(cur->LeftDown().y >= PlacementRows[i].left_down.y && cur->LeftDown().y < PlacementRows[i+1].left_down.y)
+        {
+            break;
+        }
+    }
+    if(abs(cur->LeftDown().y - PlacementRows[curidx].left_down.y) > abs(cur->LeftDown().y - PlacementRows[curidx+1].left_down.y))
+        curidx+=1;
+    newPoint.y = PlacementRows[curidx].left_down.y;
+    int curidxX = int(cur->LeftDown().x - PlacementRows[curidx].left_down.x) / PlacementRows[curidx].siteWidth;
+    if(newPoint.x - (PlacementRows[curidx].left_down.x + PlacementRows[curidx].siteWidth * curidxX) > PlacementRows[curidx].siteWidth/2)
+        curidxX++;
+    curidxX = min({curidxX,PlacementRows[curidx].count});
+    newPoint.x = PlacementRows[curidx].left_down.x + PlacementRows[curidx].siteWidth * curidxX;
+    cur->set_new_loc(newPoint);
+}
+
+void Plane_E::loc_randomize()
+{
+    cout<<"FF LOC RANDOMIZE"<<endl;
+
+    for(int i = 0 ; i < FF_list_bank.size() ;i++)
+    {
+        vector<double> d_slack{0.0,0.0};
+        min_util(FF_list_bank[i]);
+        FF_list_bank[i]->set_new_loc(random());
+        add_util(FF_list_bank[i]);
+        for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+        {
+            vector<double> tmp = FF_list_bank[i]->INs[j]->slack_propagation();
+            d_slack[0] += tmp[0];
+            d_slack[1] += tmp[1];
+        }
+        negative_slack += d_slack[0];
+        positive_slack += d_slack[1];
+        
+    }
+
+}
