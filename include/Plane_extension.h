@@ -13,6 +13,7 @@ struct Bin
     long width = 0;
     long height = 0;
     long used_area = 0;
+    double smoothen_area = 0;
     std::vector<Inst*> corr_inst;
 };
 

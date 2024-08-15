@@ -14,13 +14,33 @@ double overlappingArea(Inst* i1,Inst* i2)
     return max({(min(r1.x, r2.x) - max(l1.x, l2.x))*(min(r1.y, r2.y) - max(l1.y, l2.y)),0});
 }
 
+double overlappingArea_smoothen(Bin bin, Inst* inst)
+{
+    double a = 4.0 / ( (double(width(inst)) + 2.0 * double(bin.width)) * (double(width(inst)) + 4.0 * double(bin.width)) );
+    double b = 2.0 / ( double(bin.width) * (double(width(inst)) + 4.0 * double(bin.width)) );
+    Point l1 = inst->LeftDown();
+    Point r1 = inst->get_root()->coord[1] + Point(1,1);
+    Point l2 = bin.left_down;
+    Point r2 = bin.left_down + Point(bin.height,bin.width);
+    int dx = (min(r1.x, r2.x) - max(l1.x, l2.x));
+    if (dx <= 0)
+        dx = 0;
+    if(0 <= dx && dx <= width(inst)/2 + bin.width)
+        px = 0;
+    
+}
+
 int overlappingArea(Bin bin, Inst* inst)
 {
     Point l1 = inst->LeftDown();
     Point r1 = inst->get_root()->coord[1] + Point(1,1);
     Point l2 = bin.left_down;
     Point r2 = bin.left_down + Point(bin.height,bin.width);
-    return max({(min(r1.x, r2.x) - max(l1.x, l2.x))*(min(r1.y, r2.y) - max(l1.y, l2.y)),0});
+    int lenx = min(r1.x, r2.x) - max(l1.x, l2.x);
+    int leny = min(r1.y, r2.y) - max(l1.y, l2.y);
+    if(lenx <= 0 || leny <= 0)
+        return 0;
+    return lenx*leny;
 }
 
 double util(Bin cur)
@@ -87,6 +107,7 @@ void Plane_E::add_smooth_util(Inst* cur)
         {
             long pre_area = Bins[i][j].used_area;
             Bins[i][j].used_area += overlappingArea(Bins[i][j],cur);
+            Bins[i][j].smoothen_area -= overlappingArea_smoothen(Bins[i][j],cur);
             if(double(Bins[i][j].used_area)/double(Bins[i][j].height*Bins[i][j].width) >= BinMaxUtil/100.0 \
                && double(pre_area)/double(Bins[i][j].height*Bins[i][j].width) <= BinMaxUtil/100.0)
                 violated_bins_cnt++;
@@ -112,12 +133,13 @@ void Plane_E::min_smooth_util(Inst* cur)
         {
             long pre_area = Bins[i][j].used_area;
             Bins[i][j].used_area -= overlappingArea(Bins[i][j],cur);
+            Bins[i][j].smoothen_area -= overlappingArea_smoothen(Bins[i][j],cur);
             if(double(Bins[i][j].used_area)/double(Bins[i][j].height*Bins[i][j].width) <= BinMaxUtil/100.0 \
                && double(pre_area)/double(Bins[i][j].height*Bins[i][j].width) >= BinMaxUtil/100.0)
                 violated_bins_cnt--;
-                
-            double distributed_cost_p = min(double(pre_area),double(Bins[i][j].height*Bins[i][j].width))+ pow(max(0.0,(double(pre_area) - double(Bins[i][j].height*Bins[i][j].width))),2);
-            double distributed_cost_n = min(double(Bins[i][j].used_area),double(Bins[i][j].height*Bins[i][j].width))+ pow(max(0.0,(double(Bins[i][j].used_area) - double(Bins[i][j].height*Bins[i][j].width))),2);
+            double threshold = double(Bins[i][j].height*Bins[i][j].width) * max_util / 100.0;
+            double distributed_cost_p = min(double(pre_area),threshold)+ pow(max(0.0,(double(pre_area) - threshold)),2);
+            double distributed_cost_n = min(double(Bins[i][j].used_area),threshold)+ pow(max(0.0,(double(Bins[i][j].used_area) - threshold)),2);
             smoothen_bin_util = smoothen_bin_util - distributed_cost_p + distributed_cost_n;
         }
     }
