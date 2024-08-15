@@ -11,7 +11,7 @@ int main(int argc, char** argv)
     chip.loc_randomize();
     cout<<"HPWL OPTIMIZATION"<<endl;
     double weight = 5000;
-    while(weight > 100)
+    while(weight > 4000)
     {
         for(int i = 0 ; i < 40 ; i++)
         {
@@ -20,7 +20,7 @@ int main(int argc, char** argv)
         weight*=0.9;
     }
     chip.set_on_site();
-    for(int i = 0 ; i < 200 ; i++)
+    for(int i = 0 ; i < 2000 ; i++)
     {
         chip.slack_optimizer();
     }

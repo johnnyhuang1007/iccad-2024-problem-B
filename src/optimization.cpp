@@ -7,8 +7,10 @@ using namespace std;
 void Plane_E::move_and_propagate(Inst* cur, Point movement)
 {
     min_util(cur);
+    min_smooth_util(cur);
     cur->set_new_loc(cur->LeftDown() + movement);
     add_util(cur);
+    add_smooth_util(cur);
     vector<double> d_slack{0,0};
     for(int i = 0 ; i < cur->INs.size() ; i++)
     {
@@ -24,8 +26,10 @@ void Plane_E::move_and_propagate(Inst* cur, Point movement)
 void Plane_E::set_and_propagate(Inst* cur, Point loc)
 {
     min_util(cur);
+    min_smooth_util(cur);
     cur->set_new_loc(loc);
     add_util(cur);
+    add_smooth_util(cur);
     vector<double> d_slack{0,0};
     for(int i = 0 ; i < cur->INs.size() ; i++)
     {
@@ -116,8 +120,10 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
     }
 
     min_util(cur);
+    min_smooth_util(cur);
     cur->set_new_loc(newP);
     add_util(cur);
+    add_smooth_util(cur);
     vector<double> d_slack{0,0};
     for(int i = 0 ; i < cur->INs.size() ; i++)
     {
@@ -173,23 +179,29 @@ double Plane_E::slack_optimizer()
     
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     { 
-        double prev_cost = cost();
+        double prev_neg_slack = negative_slack;
         double prev_pos_slack = positive_slack;
+        double prev_smooth_util = smoothen_bin_util;
         Point prev = FF_list_bank[i]->LeftDown();
         int dir = rand()%4;
         int step  = rand()&21;
         unit_move_and_propagate(FF_list_bank[i],DIRS[dir],step);
-        if(cost() < prev_cost)
+        if(negative_slack > prev_neg_slack)
             continue;
-        if(cost() == prev_cost && prev_pos_slack < positive_slack)
+        else if(negative_slack == prev_neg_slack && smoothen_bin_util < prev_smooth_util)
+            continue;
+        else if(negative_slack == prev_neg_slack && smoothen_bin_util == prev_smooth_util && positive_slack <= prev_pos_slack)
             continue;
             
         set_and_propagate(FF_list_bank[i],prev);
     }
 
-    cout<<negative_slack<<endl;
-    cout<<positive_slack<<endl<<endl;
-    cout<<cost()<<endl;
+    cout<<"negative_slack   "<<negative_slack<<endl;
+    cout<<"positive_slack   "<<positive_slack<<endl;
+    cout<<"COST "<<cost()<<endl;
+    cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+    cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
+    cout<<endl;
     return negative_slack;
 }
 
@@ -258,6 +270,7 @@ double Plane_E::HPWL_optimizer(double WEIGHT)
     cout<<"positive_slack   "<<positive_slack<<endl;
     cout<<"COST "<<cost()<<endl;
     cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+    cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
     cout<<endl;
     return 0;
 }
@@ -303,7 +316,11 @@ void Plane_E::set_to_placementRow(Inst* cur)
         curidxX++;
     curidxX = min({curidxX,PlacementRows[curidx].count});
     newPoint.x = PlacementRows[curidx].left_down.x + PlacementRows[curidx].siteWidth * curidxX;
+
+    
     cur->set_new_loc(newPoint);
+    add_util(cur);
+    add_smooth_util(cur);
 }
 
 void Plane_E::loc_randomize()
@@ -314,8 +331,10 @@ void Plane_E::loc_randomize()
     {
         vector<double> d_slack{0.0,0.0};
         min_util(FF_list_bank[i]);
+        min_smooth_util(FF_list_bank[i]);
         FF_list_bank[i]->set_new_loc(random());
         add_util(FF_list_bank[i]);
+        add_smooth_util(FF_list_bank[i]);
         for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
         {
             vector<double> tmp = FF_list_bank[i]->INs[j]->slack_propagation();

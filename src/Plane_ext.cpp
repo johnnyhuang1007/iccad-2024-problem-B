@@ -185,13 +185,30 @@ Plane_E::Plane_E(string input)
 
     violated_bins_cnt = 0;
     for(int idx = 0 ; idx < G_list.size() ; idx++)
+    {
         add_util(G_list[idx]);
+        Point LEFTDOWN = G_list[idx]->LeftDown();
+        Point RIGHTUP = G_list[idx]->RightUp();
+        int idxL = LEFTDOWN.x/BinWidth;
+        int idxR = RIGHTUP.x/BinWidth;
+        int idxU = RIGHTUP.y/BinHeight;
+        int idxD = LEFTDOWN.y/BinHeight;
+        for(int i = idxD ; (i <= idxU) && (i <= (Bins.size()-1)) ; i++)
+        {
+            for(int j = idxL ; (j <= idxR) && (j <= (Bins[i].size()-1)) ; j++ )
+            {
+                Bins[i][j].smoothen_area += overlappingArea(Bins[i][j],G_list[idx]);
+            }
+        }
+    }
+    smoothen_bin_util = 0;
     FF_total_area = 0;
     FF_total_power = 0;
     for(int idx = 0 ; idx < FF_list_bank.size() ; idx++)
     {
         FF_list_bank[idx]->idx = idx;
         add_util(FF_list_bank[idx]);
+        add_smooth_util(FF_list_bank[idx]);
         FF_total_area+=FF_list_bank[idx]->area();
         FF_total_power+=FF_list_bank[idx]->corr_data->power;
     }

@@ -132,6 +132,9 @@ std::ostream& operator<<(std::ostream&,Inst_data);
 
 double HPWL(net*);
 
+int height(Inst* cur);
+int width(Inst* cur);
+
 #endif
 
 

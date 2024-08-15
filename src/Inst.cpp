@@ -1,6 +1,15 @@
 #include "module_extension.h"
 using namespace std;
 
+int height(Inst* cur)
+{
+    return height(cur->get_root());
+}
+int width(Inst* cur)
+{
+    return width(cur->get_root());
+}
+
 Inst::Inst(std::string a, Point b, int c, int d):Fixed_Module(a,b, c, d)    // I/O constructor, do not use in FF/GATE generation!!
 {
     corr_Lib.first = -1;

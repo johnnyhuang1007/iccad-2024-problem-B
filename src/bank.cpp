@@ -11,6 +11,7 @@ Inst* Plane_E::bank(std::vector<Inst*> to_bank, Inst_data* objective)
     for(int i = 0 ; i < to_bank.size() ; i++)
     {
         min_util(to_bank[i]);
+        min_smooth_util(to_bank[i]);
         remove_Inst(to_bank[i]);
         int idx = to_bank[i]->idx;
         FF_list_bank[idx] = FF_list_bank.back();
@@ -108,6 +109,7 @@ Inst* Plane_E::bank(std::vector<Inst*> to_bank, Inst_data* objective)
     }
     slack_propagation(N);
     add_util(N);
+    add_smooth_util(N);
 
     return N;
 }
@@ -119,6 +121,7 @@ std::vector<Inst*> Plane_E::debank(Inst* to_debank, std::vector<Inst_data*> obje
     FF_list_bank[idx]->idx = idx;
     FF_list_bank.pop_back();
     min_util(to_debank);
+    min_smooth_util(to_debank);
     remove_Inst(to_debank);
     
 
@@ -184,6 +187,7 @@ std::vector<Inst*> Plane_E::debank(Inst* to_debank, std::vector<Inst_data*> obje
     {
         slack_propagation(new_Insts[i]);
         add_util(new_Insts[i]);
+        add_smooth_util(new_Insts[i]);
     }
     for(int i = 0 ; i < new_Insts.size() ; i++)
         slack_propagation(new_Insts[i]);
