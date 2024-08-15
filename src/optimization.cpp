@@ -39,6 +39,7 @@ void Plane_E::set_and_propagate(Inst* cur, Point loc)
 
 void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DOWN" "LEFT" "RIGHT"
 {
+
     int y_idx  = 0;
     Point curp = cur->LeftDown();
     if(curp.y >= PlacementRows.back().left_down.y)
@@ -49,16 +50,16 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
     {
         int move = (PlacementRows.size()+1)/2;
 
-        while(!(PlacementRows[y_idx].left_down.y <= curp.y && PlacementRows[y_idx+1].left_down.y < curp.y))
+        while(!(PlacementRows[y_idx].left_down.y <= curp.y && PlacementRows[y_idx+1].left_down.y >= curp.y))
         {
-            if(PlacementRows[y_idx].left_down.y > curp.y)
+
+            if(PlacementRows[y_idx].left_down.y >= curp.y)
                 y_idx -= move;
             else
                 y_idx += move;
             move = (move+1)/2;
         }
     }
-
     Point newP;
     if(dir == "UP")
     {
@@ -114,7 +115,6 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
         newP.x = PlacementRows[y_idx].left_down.x + PlacementRows[y_idx].siteWidth * x_idx;
     }
 
-
     min_util(cur);
     cur->set_new_loc(newP);
     add_util(cur);
@@ -159,6 +159,7 @@ double Plane_E::set_on_site()
 }
 
 double collect_error = 0;
+vector<string> DIRS{"UP","RIGHT","DOWN","LEFT"};
 double Plane_E::slack_optimizer()
 {
     //cout<<"INITIAL SLACK: "<<slack<<endl;
@@ -169,65 +170,26 @@ double Plane_E::slack_optimizer()
     vector<Point> movements;
     movements.reserve(FF_list_bank.size());
     int check = rand()%FF_list_bank.size();
+    
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     { 
-        double stage_ = negative_slack;
-        prev_n_slack = negative_slack;
-        move_and_propagate(FF_list_bank[i],Point(PlacementRows[0].siteHeight,0));
-        if(0.0 < prev_n_slack - negative_slack)
-        {
-            move_and_propagate(FF_list_bank[i],Point(-2.0*PlacementRows[0].siteHeight,0));
-            if(0.0 < prev_n_slack -negative_slack)
-            {
-                move_and_propagate(FF_list_bank[i],Point(PlacementRows[0].siteHeight,0));
-                check1 = 1;
-            }
-        }
-        prev_n_slack = negative_slack;
-        move_and_propagate(FF_list_bank[i],Point(0,PlacementRows[0].siteWidth));
-        if(0.0 < prev_n_slack - negative_slack)
-        {
-            move_and_propagate(FF_list_bank[i],Point(0,-2.0*PlacementRows[0].siteWidth));
-            if(0.0 < prev_n_slack - negative_slack)
-            {
-                move_and_propagate(FF_list_bank[i],Point(0,PlacementRows[0].siteWidth));
-                check2 = 1;
-            }
-        }
-        
-        if(check1 && check2 && abs(stage_ - negative_slack) > 0.000001)
-        {
-            collect_error += stage_ - negative_slack;
-            cout<<abs(stage_ - negative_slack)<<endl;
-            exit(0);
-        }
-        check1 = 0;
-        check2 = 0;
-        //cout<<"prev_n_slack  "<<prev_n_slack<<endl<<endl;
-    }
-    
-    if(collect_error > 0.0001)
-    {
-        for(int i = 0 ; i < FF_list_bank.size() ; i++)
-        {
-            for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
-                FF_list_bank[i]->INs[j]->arrival_time = 0;
+        double prev_cost = cost();
+        double prev_pos_slack = positive_slack;
+        Point prev = FF_list_bank[i]->LeftDown();
+        int dir = rand()%4;
+        int step  = rand()&21;
+        unit_move_and_propagate(FF_list_bank[i],DIRS[dir],step);
+        if(cost() < prev_cost)
+            continue;
+        if(cost() == prev_cost && prev_pos_slack < positive_slack)
+            continue;
             
-        }
-        for(int i = 0 ; i < FF_list_bank.size() ; i++)
-        {
-            for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
-                FF_list_bank[i]->INs[j]->slack_propagation();
-        }
-        collect_error = 0;
+        set_and_propagate(FF_list_bank[i],prev);
     }
-    if(collect_error > 0.0001)
-    {
-        cout<<"COLLECTED ERROR: "<<collect_error <<endl;
-        exit(0);
-    }
+
     cout<<negative_slack<<endl;
     cout<<positive_slack<<endl<<endl;
+    cout<<cost()<<endl;
     return negative_slack;
 }
 

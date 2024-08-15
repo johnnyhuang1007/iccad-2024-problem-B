@@ -54,6 +54,7 @@ class Plane_E : public Plane
         double max_util;
         double displacement_delay;
         int violated_bins_cnt = 0;
+        double smoothen_bin_util = 0;
         long FF_total_area = 0;
         double FF_total_power = 0;
         long long int name_cnter = 0;
@@ -129,6 +130,9 @@ class Plane_E : public Plane
         void add_util(Inst*);
         void min_util(Inst*);
 
+        void add_smooth_util(Inst*);
+        void min_smooth_util(Inst*);
+
 
         //bank and debank
         Inst* bank(std::vector<Inst*>, Inst_data*);
@@ -155,6 +159,7 @@ class Plane_E : public Plane
         double get_n_slack(){return negative_slack;}
         double get_p_slack(){return positive_slack;}
         double cost();
+        double optimize_cost();
         //READ_WRITE
         void read_output_format(std::string);
         void write_input_format(std::string);
@@ -172,6 +177,7 @@ class Plane_E : public Plane
 };
 
 double overlappingArea(Inst* i1,Inst* i2);
+double overlappingArea_smoothen(Bin bin,Inst* i2);
 int overlappingArea(Bin bin, Inst* inst);
 double util(Bin cur);
 

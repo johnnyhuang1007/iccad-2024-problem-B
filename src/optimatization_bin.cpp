@@ -49,6 +49,9 @@ void Plane_E::add_util(Inst* cur)
     }
 
 }
+
+
+
 void Plane_E::min_util(Inst* cur)
 {
     Point LEFTDOWN = cur->LeftDown();
@@ -66,6 +69,56 @@ void Plane_E::min_util(Inst* cur)
             if(double(Bins[i][j].used_area)/double(Bins[i][j].height*Bins[i][j].width) <= BinMaxUtil/100.0 \
                && double(pre_area)/double(Bins[i][j].height*Bins[i][j].width) >= BinMaxUtil/100.0)
                 violated_bins_cnt--;
+        }
+    }
+}
+
+void Plane_E::add_smooth_util(Inst* cur)
+{
+    Point LEFTDOWN = cur->LeftDown();
+    Point RIGHTUP = cur->RightUp();
+    int idxL = LEFTDOWN.x/BinWidth;
+    int idxR = RIGHTUP.x/BinWidth;
+    int idxU = RIGHTUP.y/BinHeight;
+    int idxD = LEFTDOWN.y/BinHeight;
+    for(int i = idxD ; (i <= idxU) && (i <= (Bins.size()-1)) ; i++)
+    {
+        for(int j = idxL ; (j <= idxR) && (j <= (Bins[i].size()-1)) ; j++ )
+        {
+            long pre_area = Bins[i][j].used_area;
+            Bins[i][j].used_area += overlappingArea(Bins[i][j],cur);
+            if(double(Bins[i][j].used_area)/double(Bins[i][j].height*Bins[i][j].width) >= BinMaxUtil/100.0 \
+               && double(pre_area)/double(Bins[i][j].height*Bins[i][j].width) <= BinMaxUtil/100.0)
+                violated_bins_cnt++;
+
+            double distributed_cost_p = min(double(pre_area),double(Bins[i][j].height*Bins[i][j].width))+ pow(max(0.0,(double(pre_area) - double(Bins[i][j].height*Bins[i][j].width))),2);
+            double distributed_cost_n = min(double(Bins[i][j].used_area),double(Bins[i][j].height*Bins[i][j].width))+ pow(max(0.0,(double(Bins[i][j].used_area) - double(Bins[i][j].height*Bins[i][j].width))),2);
+            smoothen_bin_util = smoothen_bin_util - distributed_cost_p + distributed_cost_n;
+        }
+    }
+}
+
+void Plane_E::min_smooth_util(Inst* cur)
+{
+    Point LEFTDOWN = cur->LeftDown();
+    Point RIGHTUP = cur->RightUp();
+    int idxL = LEFTDOWN.x/BinWidth;
+    int idxR = RIGHTUP.x/BinWidth;
+    int idxU = RIGHTUP.y/BinHeight;
+    int idxD = LEFTDOWN.y/BinHeight;
+    for(int i = idxD ; (i <= idxU) && (i <= (Bins.size()-1)) ; i++)
+    {
+        for(int j = idxL ; (j <= idxR) && (j < Bins[i].size()) ; j++ )
+        {
+            long pre_area = Bins[i][j].used_area;
+            Bins[i][j].used_area -= overlappingArea(Bins[i][j],cur);
+            if(double(Bins[i][j].used_area)/double(Bins[i][j].height*Bins[i][j].width) <= BinMaxUtil/100.0 \
+               && double(pre_area)/double(Bins[i][j].height*Bins[i][j].width) >= BinMaxUtil/100.0)
+                violated_bins_cnt--;
+                
+            double distributed_cost_p = min(double(pre_area),double(Bins[i][j].height*Bins[i][j].width))+ pow(max(0.0,(double(pre_area) - double(Bins[i][j].height*Bins[i][j].width))),2);
+            double distributed_cost_n = min(double(Bins[i][j].used_area),double(Bins[i][j].height*Bins[i][j].width))+ pow(max(0.0,(double(Bins[i][j].used_area) - double(Bins[i][j].height*Bins[i][j].width))),2);
+            smoothen_bin_util = smoothen_bin_util - distributed_cost_p + distributed_cost_n;
         }
     }
 }
