@@ -52,7 +52,6 @@ class Plane_E : public Plane
         double HPWL;
         double area;
         double power;
-        double max_util;
         double displacement_delay;
         int violated_bins_cnt = 0;
         double smoothen_bin_util = 0;
@@ -81,6 +80,7 @@ class Plane_E : public Plane
         std::vector<Pin*> evaluation_Pins;
 
         std::vector<net*> net_list;
+        std::unordered_map<net*,std::vector<Inst*>>  clk_domain_Insts;
         //std::vector<std::vector<Pin*>> same_domain_d_pins;
 
         //finder
@@ -138,6 +138,8 @@ class Plane_E : public Plane
         //bank and debank
         Inst* bank(std::vector<Inst*>, Inst_data*);
         std::vector<Inst*> debank(Inst*, std::vector<Inst_data*>);
+        Inst* bank(std::vector<Inst*>);
+        std::vector<Inst*> debank(Inst*);
 
         //placer
         double set_on_site();
@@ -147,7 +149,8 @@ class Plane_E : public Plane
         void sequence_finder();
         void sequence_finder(Inst*);
         double HPWL_optimizer(double);
-        double slack_optimizer();
+        double slack_optimizer(int);
+        void update_slack_pin_weight(double);
         void move_and_propagate(Inst*,Point);
         void set_and_propagate(Inst*, Point);
         void unit_move_and_propagate(Inst*,std::string,int);  //"UP" "DOWN" "LEFT" "RIGHT"

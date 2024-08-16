@@ -166,7 +166,7 @@ double Plane_E::set_on_site()
 
 double collect_error = 0;
 vector<string> DIRS{"UP","RIGHT","DOWN","LEFT"};
-double Plane_E::slack_optimizer()
+double Plane_E::slack_optimizer(int step)
 {
     //cout<<"INITIAL SLACK: "<<slack<<endl;
     bool check1 = 0,check2 = 0;
@@ -177,6 +177,7 @@ double Plane_E::slack_optimizer()
     movements.reserve(FF_list_bank.size());
     int check = rand()%FF_list_bank.size();
     
+    
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     { 
         double prev_neg_slack = negative_slack;
@@ -184,13 +185,8 @@ double Plane_E::slack_optimizer()
         double prev_smooth_util = smoothen_bin_util;
         Point prev = FF_list_bank[i]->LeftDown();
         int dir = rand()%4;
-        int step  = rand()&21;
         unit_move_and_propagate(FF_list_bank[i],DIRS[dir],step);
-        if(negative_slack > prev_neg_slack)
-            continue;
-        else if(negative_slack == prev_neg_slack && smoothen_bin_util < prev_smooth_util)
-            continue;
-        else if(negative_slack == prev_neg_slack && smoothen_bin_util == prev_smooth_util && positive_slack <= prev_pos_slack)
+        if(alpha*(-negative_slack+prev_neg_slack)/prev_neg_slack + lambda * (prev_smooth_util - smoothen_bin_util)/prev_smooth_util >= 0)
             continue;
             
         set_and_propagate(FF_list_bank[i],prev);
@@ -210,9 +206,8 @@ bool isnan(Point p)
     return (p.x != p.x) || (p.y != p.y);
 }
 
-double Plane_E::HPWL_optimizer(double WEIGHT)
+void Plane_E::update_slack_pin_weight(double WEIGHT)
 {
-
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     {
         for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
@@ -226,7 +221,13 @@ double Plane_E::HPWL_optimizer(double WEIGHT)
             }
         }
     }
+}
 
+
+double Plane_E::HPWL_optimizer(double WEIGHT)
+{
+
+    update_slack_pin_weight(WEIGHT);
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     {
         for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)

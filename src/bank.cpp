@@ -5,6 +5,26 @@
 using namespace std;
 
 
+std::vector<Inst*> Plane_E::debank(Inst* to_debank)
+{
+    int total_bits = to_debank->INs.size();
+    vector<Inst_data*> single_bits_ff_vec;
+    single_bits_ff_vec.resize(total_bits,FF_lib_bits[1][0]);
+    return debank(to_debank,single_bits_ff_vec);
+}
+
+Inst* Plane_E::bank(std::vector<Inst*> to_bank)
+{
+    int total_bits = 0;
+    for(int i = 0 ; i < to_bank.size() ; i++)
+    {
+        total_bits += to_bank[i]->INs.size();
+    }
+    if(total_bits >= FF_lib_bits.size())    //FF_lib_bits[i] imply using i bits FF
+        return NULL;
+
+    return bank(to_bank, FF_lib_bits[total_bits][0]);
+}
 
 Inst* Plane_E::bank(std::vector<Inst*> to_bank, Inst_data* objective)
 {

@@ -231,8 +231,8 @@ void Plane_E::reduce_high_util_pin_weight()
             for(Pin* p : cur->Pins)
             {
                 p->critical_weight -=1.0/double(Bins[0].size() * Bins.size() - violated_bins_cnt)*5.0;
-                if(p->critical_weight <= 0)
-                    p->critical_weight = 0;
+                if(p->critical_weight <= 0.01)
+                    p->critical_weight = 0.01;
             }
     }
     for(Inst* cur : FF_list_bank)
@@ -244,8 +244,8 @@ void Plane_E::reduce_high_util_pin_weight()
             for(Pin* p : cur->Pins)
             {
                 p->critical_weight -=1.0/double(Bins[0].size() * Bins.size() - violated_bins_cnt)*5.0;
-                if(p->critical_weight <= 0)
-                    p->critical_weight = 0;
+                if(p->critical_weight <= 0.01)
+                    p->critical_weight = 0.01;
             }
     }
 }

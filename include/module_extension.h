@@ -96,7 +96,6 @@ class Inst:public Fixed_Module
     std::pair<int,int> corr_Lib = std::pair<int,int>(-1,-1);
     Inst_data* corr_data = NULL;
     int idx;
-
     //for FF
     std::vector<Pin*> INs;
     std::vector<Pin*> OUTs;

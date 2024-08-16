@@ -72,6 +72,8 @@ public:
 
 	bool checkAllSpace(Tile*);
 	bool checkAllSpace(Tile*, Tile*);
+	std::vector<Tile*> getSpaceTileInRegion(Tile*);
+	std::vector<Tile*> getSolidTileInRegion(Tile*);
 	bool checkAllSpace(int idx){return checkAllSpace(Fixed_Module_set[idx]->get_root());}
 	void insertFix(Fixed_Module*);
 	void minHPWLStretch(Soft_Module*);

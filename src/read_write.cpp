@@ -166,6 +166,8 @@ void Plane_E::read_output_format(string f)
             HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
         }
     }
+
+    cout<<
 }
 
 void Plane_E::write_input_format(string f)

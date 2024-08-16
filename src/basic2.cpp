@@ -158,6 +158,7 @@ vector<Tile*> Plane::getAllSpace(void (*findNeighbor)(Tile*, std::vector<Tile*>&
 }
 
 
+
 bool Plane::checkAllSpace(Tile* inTile,Tile* start)
 {
 	if (LD(inTile).x < 0 || LD(inTile).y < 0)
@@ -181,6 +182,77 @@ bool Plane::checkAllSpace(Tile* inTile,Tile* start)
 	}
 
 	return !fail;
+}
+
+vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile)
+{
+	list<Tile*> return_list;
+	Tile* curSpace = point_finding(LD(inTile));
+	
+	int current_height = RU(inTile).y;
+	int current_lower = LD(inTile).y;
+	while (1)
+	{
+		
+		if (curSpace->is_space())
+			return_list.push_back(curSpace);
+		if(current_height > RU(curSpace).y)
+			current_height = RU(curSpace).y;
+		
+		Point tmp;
+		if(RU(curSpace).y >= RU(inTile).y)	//this mean this row has done searching
+		{
+			tmp.y = ++current_height;
+			current_lower = current_height;
+			tmp.x = LD(inTile).x;
+			if(tmp.y > RU(inTile).y)
+				break;
+		}
+		else
+		{
+			tmp.x = RU(curSpace).x + 1;
+			tmp.y = current_lower;
+		}
+		curSpace = point_finding(tmp, curSpace);
+	}
+
+	vector<Tile*> res{return_list.begin(),return_list.end()};
+	return res;
+}
+std::vector<Tile*> Plane::getSolidTileInRegion(Tile* inTile)
+{
+	list<Tile*> return_list;
+	Tile* curSpace = point_finding(LD(inTile));
+	
+	int current_height = RU(inTile).y;
+	int current_lower = LD(inTile).y;
+	while (1)
+	{
+		
+		if (!curSpace->is_space())
+			return_list.push_back(curSpace);
+		if(current_height > RU(curSpace).y)
+			current_height = RU(curSpace).y;
+		
+		Point tmp;
+		if(RU(curSpace).y >= RU(inTile).y)	//this mean this row has done searching
+		{
+			tmp.y = ++current_height;
+			current_lower = current_height;
+			tmp.x = LD(inTile).x;
+			if(tmp.y > RU(inTile).y)
+				break;
+		}
+		else
+		{
+			tmp.x = RU(curSpace).x + 1;
+			tmp.y = current_lower;
+		}
+		curSpace = point_finding(tmp, curSpace);
+	}
+
+	vector<Tile*> res{return_list.begin(),return_list.end()};
+	return res;
 }
 
 bool Plane::checkAllSpace(Tile* inTile)

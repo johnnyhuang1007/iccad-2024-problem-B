@@ -20,9 +20,14 @@ int main(int argc, char** argv)
         weight*=0.9;
     }
     chip.set_on_site();
-    for(int i = 0 ; i < 2000 ; i++)
+    double step = 40;
+    for(int i = 0 ; i < 10 ; i++)
     {
-        chip.slack_optimizer();
+        for(int i = 0 ; i < 200 ; i++)
+        {
+            chip.slack_optimizer(step);
+        }
+        step*=0.7;
     }
     chip.reduce_high_util_pin_weight();
     chip.insert_FFs();

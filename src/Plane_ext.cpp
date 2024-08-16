@@ -45,10 +45,10 @@ Plane_E::Plane_E(string input)
     //corner stitching init
     //start
     Module* dummyModule = new Module("boundary", 0);
-	boundary[0] = new Tile(Point(0, -1), Point(Height, -1), dummyModule);
-	boundary[1] = new Tile(Point(Height, 0), Point(Height, Width), dummyModule);
-	boundary[2] = new Tile(Point(-1, Width), Point(Height - 1, Width), dummyModule);
-	boundary[3] = new Tile(Point(-1, -1), Point(-1, Width - 1), dummyModule);
+	boundary[0] = new Tile(Point(0,-1 -1000000000), Point(Height +1000000000, -1), dummyModule);
+	boundary[1] = new Tile(Point(Height, 0), Point(Height +1000000000, Width +1000000000), dummyModule);
+	boundary[2] = new Tile(Point(-1 -1000000000, Width), Point(Height-1, Width +1000000000), dummyModule);
+	boundary[3] = new Tile(Point(-1 -1000000000, -1 -1000000000), Point(-1, Width-1), dummyModule);
 
 	Tile* Space = new Tile(Point(0, 0), Height, Width);
 	boundary[0]->stitch[0] = boundary[1];
@@ -215,6 +215,27 @@ Plane_E::Plane_E(string input)
 
     cout<<violated_bins_cnt<<endl;
     cout<<cost()<<endl;
+
+
+    //obtain clk_domain_list for banking usage
+    /*
+    for(net* cur_net: net_list)
+    {
+        bool is_clk = 0;
+        for(int i = 0 ; i < cur_net->TOs.size() ; i++)
+        {
+            if(cur_net->TOs[i]->type == 'C')
+            {
+                is_clk = 1;
+                break;
+            }
+        }
+        if(!is_clk)
+            continue;
+        clk_domain_Insts.insert(make_pair(cur_net,vector<Inst*>{}));
+    } 
+    for(int i = 0 ; i < )
+    */
 } 
 
 double Plane_E::cost()
