@@ -27,9 +27,9 @@ Inst::Inst(std::string name, Point LD, Inst_data* data,std::pair<int,int> T_Idx 
 {
     corr_Lib = T_Idx;
     this->corr_data = data;
-    this->Pins.resize(data->pinCount);
-    this->Pins.resize((data->pinCount-1)/2);
-    this->Pins.resize((data->pinCount-1)/2);
+    this->Pins.reserve(data->pinCount);
+    this->INs.resize((data->pinCount-1)/2);
+    this->OUTs.resize((data->pinCount-1)/2);
     
     return;
 }

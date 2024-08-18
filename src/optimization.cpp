@@ -161,6 +161,13 @@ double Plane_E::set_on_site()
     {
         set_and_propagate(FF,closest_Legal_locs(FF->LeftDown()));
     }
+
+    cout<<"negative_slack   "<<negative_slack<<endl;
+    cout<<"positive_slack   "<<positive_slack<<endl;
+    cout<<"COST "<<cost()<<endl;
+    cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+    cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
+    cout<<endl;
     return negative_slack;
 }
 
@@ -216,7 +223,7 @@ void Plane_E::update_slack_pin_weight(double WEIGHT)
             {
                 for(Pin* cur: FF_list_bank[i]->INs[j]->path_seq)
                 {
-                    cur->critical_weight -= FF_list_bank[i]->INs[j]->slack/(-negative_slack+0.0000001) * WEIGHT;
+                    cur->critical_weight -= FF_list_bank[i]->INs[j]->slack/(positive_slack+0.0000001) * WEIGHT;
                 }
             }
         }
@@ -224,10 +231,10 @@ void Plane_E::update_slack_pin_weight(double WEIGHT)
 }
 
 
-double Plane_E::HPWL_optimizer(double WEIGHT)
+double Plane_E::HPWL_optimizer()
 {
 
-    update_slack_pin_weight(WEIGHT);
+    
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     {
         for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)

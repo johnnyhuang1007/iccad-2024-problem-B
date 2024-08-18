@@ -85,7 +85,7 @@ void Plane_E::read_output_format(string f)
         {
             org_p->pin_type = name_set.second;
             org_p->belong_Inst = newI;
-            newI->CLK = org_p;
+            newI->CLK.push_back(org_p);
             newI->Pins.push_back(org_p);
         }
         else
@@ -167,7 +167,12 @@ void Plane_E::read_output_format(string f)
         }
     }
 
-    cout<<
+    cout<<"negative_slack   "<<negative_slack<<endl;
+    cout<<"positive_slack   "<<positive_slack<<endl;
+    cout<<"COST "<<cost()<<endl;
+    cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+    cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
+    cout<<endl;
 }
 
 void Plane_E::write_input_format(string f)
@@ -249,7 +254,7 @@ void Plane_E::write_input_format(string f)
     fout<<"Lambda "<<lambda<<endl;
     fout.unsetf(std::ios_base::fixed);
 
-    fout<<"0 0 "<<Width<<" "<<Height<<endl;
+    fout<<"DieSize 0 0 "<<Width<<" "<<Height<<endl;
     fout<<"NumInput "<<In_list.size()<<endl;
     for(auto& in_data : In_list)
     {
@@ -272,7 +277,7 @@ void Plane_E::write_input_format(string f)
     */
    for(int i = 0 ; i < FF_lib.size() ; i++)
    {
-        fout<<"FlipFlop "<<i+1<<" "<<FF_lib[i].name<<" "<<FF_lib[i].width<<" "<<FF_lib[i].height<<" "<<FF_lib[i].pinCount<<endl;
+        fout<<"FlipFlop "<<FF_lib[i].bits<<" "<<FF_lib[i].name<<" "<<FF_lib[i].width<<" "<<FF_lib[i].height<<" "<<FF_lib[i].pinCount<<endl;
         for(Pin p : FF_lib[i].Pin_set)
             fout<<"Pin "<<p.org_type<<" "<<p.org_relative_loc<<endl;
    }

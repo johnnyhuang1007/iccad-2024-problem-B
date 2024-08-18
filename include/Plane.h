@@ -86,6 +86,7 @@ public:
 
 	Point generateSeed(Soft_Module*, Point&);
 	Tile findMaxUsableRect(Point);
+	Tile findUsableRect(Tile*, Tile*);
 	bool patch(Soft_Module*, int, Point&);
 	bool patchOne(Soft_Module* curSoft, int side, int Constraint);
 	bool fillUp(Soft_Module*, int);

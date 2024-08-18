@@ -58,9 +58,9 @@ class Plane_E : public Plane
         long FF_total_area = 0;
         double FF_total_power = 0;
         long long int name_cnter = 0;
+        
     public:
         
-
         std::vector<Inst_data> FF_lib;
         std::unordered_map<std::string,Inst_data*> FF_lib_u;
         std::vector<std::vector<Inst_data*>> FF_lib_bits;
@@ -80,6 +80,7 @@ class Plane_E : public Plane
         std::vector<Pin*> evaluation_Pins;
 
         std::vector<net*> net_list;
+        std::vector<net*> clk_net_list;
         std::unordered_map<net*,std::vector<Inst*>>  clk_domain_Insts;
         //std::vector<std::vector<Pin*>> same_domain_d_pins;
 
@@ -140,6 +141,14 @@ class Plane_E : public Plane
         std::vector<Inst*> debank(Inst*, std::vector<Inst_data*>);
         Inst* bank(std::vector<Inst*>);
         std::vector<Inst*> debank(Inst*);
+        void debank();
+        void bank();
+        double effective_dist(Inst*,Inst*);
+        
+        std::vector<Inst*> get_same_domain_FFs(Inst*);
+        std::vector<Inst*> get_same_domain_FFs(net* cur);
+        void same_domain_banking(net*);
+        void same_domain_debanking(net*);
 
         //placer
         double set_on_site();
@@ -148,7 +157,7 @@ class Plane_E : public Plane
         //optimizer
         void sequence_finder();
         void sequence_finder(Inst*);
-        double HPWL_optimizer(double);
+        double HPWL_optimizer();
         double slack_optimizer(int);
         void update_slack_pin_weight(double);
         void move_and_propagate(Inst*,Point);
@@ -184,5 +193,8 @@ double overlappingArea(Inst* i1,Inst* i2);
 double overlappingArea_smoothen(Bin bin,Inst* i2);
 int overlappingArea(Bin bin, Inst* inst);
 double util(Bin cur);
+bool cost_comp(double gamma,double beta,Inst_data* a, Inst_data* b);
+double dist(Inst*,Inst*);
+
 
 #endif

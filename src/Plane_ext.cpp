@@ -81,6 +81,7 @@ Plane_E::Plane_E(string input)
 
     cout<<"READ OUTPUT NODE"<<endl;
     fin>>dummy>>size;//NumOutput 2
+    cout<<size<<endl;
     for(int i = 0 ; i < size ; i++) //to do
     {
         
@@ -217,6 +218,14 @@ Plane_E::Plane_E(string input)
     cout<<cost()<<endl;
 
 
+    list<net*> tmp_clk_nets;
+    for(int i = 0 ; i < net_list.size() ; i++)
+    {
+        if(net_list[i]->CLKs.size()>0)
+            tmp_clk_nets.push_back(net_list[i]);
+    }
+    clk_net_list = vector<net*>{tmp_clk_nets.begin(),tmp_clk_nets.end()};
+
     //obtain clk_domain_list for banking usage
     /*
     for(net* cur_net: net_list)
@@ -325,6 +334,12 @@ void Plane_E::SET_FF_GATE_LIB(ifstream& fin)
                 tmp.pin_type = tmp.pin_type;
                 tmp.org_relative_loc = tmp.relative_loc;
                 tmp.org_type = tmp.pin_type;
+                if(tmp.org_type[0] == 'D')
+                    tmp.type = 'I';
+                else if(tmp.org_type[0] == 'Q')
+                    tmp.type = 'O';
+                else
+                    tmp.type = 'C';
                 tmpF.Pin_set.push_back(tmp);
             }
             FF_tmps.push_back(tmpF);
@@ -339,6 +354,10 @@ void Plane_E::SET_FF_GATE_LIB(ifstream& fin)
                 tmp.pin_type = tmp.pin_type;
                 tmp.org_relative_loc = tmp.relative_loc;
                 tmp.org_type = tmp.pin_type;
+                if(tmp.org_type[0] == 'I')
+                    tmp.type = 'I';
+                else if(tmp.org_type[0] == 'O')
+                    tmp.type = 'O';
                 tmpG.Pin_set.push_back(tmp);
             }
             G_tmps.push_back(tmpG);
@@ -358,13 +377,13 @@ void Plane_E::SET_FF_GATE_LIB(ifstream& fin)
     int max_cnt = -1;
     for(int i = 0 ; i < FF_lib.size() ; i++)
     {
-        if((FF_lib[i].bits-1)/2 > max_cnt)
-            max_cnt = (FF_lib[i].bits-1)/2;
+        if(FF_lib[i].bits > max_cnt)
+            max_cnt = FF_lib[i].bits;
     }
     bit_ff_cnts.resize(max_cnt+1,0);
     for(int i = 0 ; i < FF_lib.size() ; i++)
     {
-        bit_ff_cnts[(FF_lib[i].bits-1)/2]++;
+        bit_ff_cnts[FF_lib[i].bits]++;
     }
     FF_lib_bits.resize(max_cnt+1);
     for(int i = 0 ; i < max_cnt ; i++)
@@ -373,17 +392,36 @@ void Plane_E::SET_FF_GATE_LIB(ifstream& fin)
     }
     for(int i = 0 ; i < FF_lib.size() ; i++)
     {
-        FF_lib_bits[(FF_lib[i].bits-1)/2].push_back(&FF_lib[i]);
+        FF_lib_bits[FF_lib[i].bits].push_back(&FF_lib[i]);
     }
-
-
+    
+    for(int i = 0 ; i < FF_lib_bits.size() ; i++)
+    {
+        if(FF_lib_bits[i].size()==0)
+            continue;
+        for(int j = 0 ; j < FF_lib_bits[i].size()-1 ; j++)
+        {
+            for(int k = j+1 ; k < FF_lib_bits[i].size() ; k++)
+            {
+                if(!cost_comp(gamma,beta,FF_lib_bits[i][j],FF_lib_bits[i][k]))
+                    swap(FF_lib_bits[i][j],FF_lib_bits[i][k]);
+            }
+        }
+    }
     for(int i = Word.size()-1 ; i >= 0 ; i--)
     {
         fin.putback(Word[i]);
     }
-    
+
 }
 
+
+
+bool cost_comp(double gamma,double beta,Inst_data* a, Inst_data* b)
+{
+    //make lambda into consideration
+    return gamma * a->height*a->width + beta * a->power  < gamma * b->height*b->width + beta * b->power;
+}
 
 pair<int,int> Plane_E::find_lib_by_name(string name)
 {
@@ -424,7 +462,7 @@ void Plane_E::SET_FF_GATE_INFO(ifstream& fin)
     
     G_list.reserve(size);
     FF_list.reserve(size);
-
+    cout<<"END"<<endl;
     for(int i = 0 ; i < size ; i++)
     {
         string name, lib_name;
@@ -449,7 +487,7 @@ void Plane_E::SET_FF_GATE_INFO(ifstream& fin)
             G_list_u.insert(make_pair(N->get_name(),N));
         }
     }
-
+    cout<<"END2"<<endl;
     FF_list_bank.resize(FF_list.size());
     for(int i = 0 ; i < FF_list.size() ; i++)
     {
@@ -463,6 +501,7 @@ void Plane_E::SET_FF_GATE_INFO(ifstream& fin)
         }
         */
     }
+    cout<<"END3"<<endl;
 }
 
 void Plane_E::SET_NET(ifstream& fin)
@@ -715,9 +754,36 @@ Point Plane_E::closest_Legal_locs(Point cur)    //to Improve
     return newP2;
 };
 
+bool slack_compare(Inst* a, Inst* b)
+{
+    double slack1 = 0;
+    double slack2 = 0;
+    for(Pin* p:a->INs)
+        slack1 += p->slack;
+    for(Pin* p:b->INs)
+        slack2 += p->slack;
+    return slack1 < slack2;
+}
+
 void Plane_E::location_legalization(vector<Inst*> to_fix)
 {
+    sort(to_fix.begin(),to_fix.end(),slack_compare);
 
+    for(auto& FF: to_fix)
+    {
+        if(checkAllSpace(FF->get_root()))
+        {
+            insert_inst(FF);
+            continue;
+        }
+        Tile pseudo_tile;
+        //decide its size
+        bool inserted = 0;
+        while(!inserted)
+        {
+            vector<Tile*> space_vec = getSpaceTileInRegion(&pseudo_tile);
+        }
+    }
 }
 
 void Plane_E::set_km_result(string input,string output)
@@ -792,7 +858,7 @@ void Plane_E::output(char* file)
 {
     ofstream fout;
     fout.open(file);
-    fout<<"CellInst "<<FF_list.size()<<endl;
+    fout<<"CellInst "<<FF_list_bank.size()<<endl;
     fout<<fixed;
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     {
@@ -945,7 +1011,7 @@ void Plane_E::IOC_distinguish()
             else if(toupper(cur_p->org_type[0]) == 'C')
             {
                 cur_p->type = 'C';
-                cur->CLK = cur_p;
+                cur->CLK.push_back(cur_p);
             }
             else
             {
@@ -953,6 +1019,7 @@ void Plane_E::IOC_distinguish()
             }
         }
     }
+    
     for(auto& cur:G_list)
     {
         for(Pin* cur_p:cur->Pins)
@@ -986,17 +1053,42 @@ void Plane_E::IOC_distinguish()
         for(Pin* p : cur->relative)
         {
             if(p->type == 'O')
-            {
                 cur->FROMs.push_back(p);
-            }
             else if(p->type == 'I')
                 cur->TOs.push_back(p);
             else if(p->type == 'C')
-                cur->CLK = p;
+                cur->CLKs.push_back(p);
             else
                 cout<<"UNKNOWN TYPE"<<endl;
         }
     }
+
+    for(auto& cur:FF_list_bank)
+    {
+        if(cur->INs.size() <= cur->CLK.size())
+            continue;
+        int start_point = cur->CLK.size();
+        cur->CLK.reserve(cur->INs.size());
+        for(int i = start_point ; i < cur->INs.size() ; i++)
+        {
+            Pin* newCLK = new Pin(*cur->CLK[0]);
+            newCLK->belong_net->relative.push_back(newCLK);
+            newCLK->belong_net->CLKs.push_back(newCLK);
+            cur->CLK.push_back(newCLK);
+            newCLK->orginal_Inst->CLK.push_back(newCLK);
+        }
+    }
+    for(auto& cur:FF_list_bank)
+    {
+        for(int i = 0 ; i < cur->INs.size() ; i++)
+        {
+            cur->INs[i]->matching_Pin = cur->CLK[i];
+            cur->OUTs[i]->matching_Pin = cur->CLK[i];
+            cur->CLK[i]->matching_Pin = cur->CLK[i];
+        }
+    }
+
+
 }
 
 

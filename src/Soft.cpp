@@ -479,6 +479,80 @@ void findCurLeftRight(vector<Tile*> WspaceSet, int givenWhiteNo, int& curMaxLeft
 
 }
 
+#include<stack>
+Tile Plane::findUsableRect(Tile* included, Tile* objective)
+{
+	list<Tile> accepted_list;
+	//include : the tile that is found must include this tile;
+	//objective : the height/width of the tile
+	stack<Tile> searching_list;
+	searching_list.push(*included);
+	while(!searching_list.empty())
+	{
+		Tile header = searching_list.top();
+		searching_list.pop();
+		Tile upper = Tile(Point(RU(&header).y+1,LD(&header).x), Point(RU(&header).y+1,RU(&header).x));
+		vector<Tile*> neighbor = getSpaceTileInRegion(&upper);
+		for(int i = 0 ; i < neighbor.size() ; i++)
+		{
+			Tile to_find = *neighbor[i];
+			if(RU(&to_find).x > RU(&header).x)
+				RU(&to_find).x = RU(&header).x;
+			if(LD(&to_find).x < LD(&header).x)
+				LD(&to_find).x = LD(&header).x;
+			/*make a sudo tile*/
+			if(width(&to_find) < width(objective))
+				continue;
+			Tile pseudo = Tile(Point(RU(&to_find).y-height(objective)+1,LD(&to_find).x),RU(&to_find));
+			if(checkAllSpace(&pseudo,included))
+			{
+				accepted_list.push_back(pseudo);
+				continue;
+			}
+			searching_list.push(to_find);
+		}
+	}
+	searching_list.push(*included);
+	while(!searching_list.empty())
+	{
+		Tile header = searching_list.top();
+		searching_list.pop();
+		Tile lower = Tile(Point(LD(&header).y-1,LD(&header).x), Point(LD(&header).y-1,RU(&header).x));
+		vector<Tile*> neighbor = getSpaceTileInRegion(&lower);
+		for(int i = 0 ; i < neighbor.size() ; i++)
+		{
+			Tile to_find = *neighbor[i];
+			if(RU(&to_find).x > RU(&header).x)
+				RU(&to_find).x = RU(&header).x;
+			if(LD(&to_find).x < LD(&header).x)
+				LD(&to_find).x = LD(&header).x;
+			/*make a sudo tile*/
+			if(width(&to_find) < width(objective))
+				continue;
+			Tile pseudo = Tile(LD(&to_find),Point(LD(&to_find).x + height(objective)-1,RU(&to_find).x));
+			if(checkAllSpace(&pseudo,included))
+			{
+				accepted_list.push_back(pseudo);
+				continue;
+			}
+			searching_list.push(to_find);
+		}
+	}
+	double dist = 100000000000000000;
+	Tile to_return;
+	for(Tile& T : accepted_list)
+	{
+		Point vec = objective->coord[0] + objective->coord[1] - T.coord[0] - T.coord[1];
+		double cur_dist = (abs(vec.x) + abs(vec.y))/2;
+		if(dist >= cur_dist)
+		{
+			dist = cur_dist;
+			to_return = T;
+		}
+	}
+	return to_return;
+}
+
 Tile Plane::findMaxUsableRect(Point given)
 {
 	list<Tile*> Wspacels;

@@ -32,6 +32,7 @@ struct Pin
     double arrival_time = 0;
     double require_time = 0;
     double critical_weight = 1;
+    Pin* matching_Pin = NULL;
     std::list<Pin*> path_seq;
     void delay_free_value_determine();  //only for Dpin
     std::vector<double> slack_propagation(Pin*);
@@ -70,7 +71,7 @@ struct net
     std::vector<Pin*> FROMs;
     double FROMs_weight = 1;
     
-    Pin* CLK;
+    std::vector<Pin*> CLKs;
     net(){}
     ~net(){}
 };
@@ -99,7 +100,7 @@ class Inst:public Fixed_Module
     //for FF
     std::vector<Pin*> INs;
     std::vector<Pin*> OUTs;
-    Pin* CLK = NULL;
+    std::vector<Pin*> CLK;
     net* clk_domain;
 
     //all pins

@@ -7,10 +7,11 @@ Pin::Pin(const Pin& copy)
     this->orginal_Inst = copy.orginal_Inst;
     this->pin_type = copy.pin_type;
     this->org_type = copy.pin_type;
-
+    this->type = copy.type;
     this->belong_Inst = copy.belong_Inst;
     this->relative_loc = copy.relative_loc; //if belong inst is null then it's absolute
     this->org_relative_loc = copy.org_relative_loc;
+    this->matching_Pin = copy.matching_Pin;
     this->recursive = 0;
 }
 
