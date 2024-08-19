@@ -798,8 +798,8 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
         {
             // NEED TO BE FIXED
             // WE NEED TO　seperate the loc. of FFs and its root to speed up the process
-            Point vec = pos.coord[0] + pos.coord[1] - FF->LeftDown() ;
-		    double cur_dist = (abs(vec.x) + abs(vec.y))/2;
+            Point vec = pos.coord[0] - FF->LeftDown();
+		    double cur_dist = (abs(vec.x) + abs(vec.y));
         }
     }
 

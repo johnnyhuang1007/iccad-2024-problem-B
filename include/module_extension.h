@@ -117,6 +117,8 @@ class Inst:public Fixed_Module
     Inst(Inst*);
     virtual ~Inst(){}
 
+    Point FF_RightUp(){return this->LeftDown() + Point(this->corr_data->height,this->corr_data->width);}
+    Point Tile_RightUp(){return RU(get_root());}
     void set_new_loc(Point); //it set new loc, but it isn't responsible to insertion
     void set_DQC(); // it move pins from pins to its type, and sorted in order;
 };
