@@ -779,11 +779,30 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
         Tile pseudo_tile;
         //decide its size
         bool inserted = 0;
+        vector<Tile> possible_tiles;
         while(!inserted)
         {
             vector<Tile*> space_vec = getSpaceTileInRegion(&pseudo_tile);
+            for(auto& space : space_vec)
+            {
+                Tile to_push = findUsableRect(space, FF->get_root());
+                if(RU(&to_push).x != -999999999)
+                {
+                    inserted = 1;
+                    possible_tiles.push_back(to_push);
+                }
+            }
+        }
+        
+        for(Tile pos : possible_tiles)
+        {
+            // NEED TO BE FIXED
+            // WE NEED TO　seperate the loc. of FFs and its root to speed up the process
+            Point vec = pos.coord[0] + pos.coord[1] - FF->LeftDown() ;
+		    double cur_dist = (abs(vec.x) + abs(vec.y))/2;
         }
     }
+
 }
 
 void Plane_E::set_km_result(string input,string output)
