@@ -538,6 +538,10 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 			searching_list.push(to_find);
 		}
 	}
+	if(searching_list.size() == 0)
+	{
+		return Tile(Point(-999999999,-999999999),Point(-999999999,-999999999));
+	}
 	double dist = 100000000000000000;
 	Tile to_return;
 	for(Tile& T : accepted_list)
