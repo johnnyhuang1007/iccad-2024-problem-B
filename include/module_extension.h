@@ -137,6 +137,8 @@ double HPWL(net*);
 int height(Inst* cur);
 int width(Inst* cur);
 
+Point min_displacement_loc(Inst*, Tile*);
+
 #endif
 
 

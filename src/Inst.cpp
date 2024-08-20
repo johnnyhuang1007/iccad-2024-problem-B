@@ -108,3 +108,39 @@ void Inst::set_new_loc(Point newLoc)
     
 }
 
+Point min_displacement_loc(Inst* condition, Tile* region)
+{
+    Point cur = condition->LeftDown();
+    Point RU = condition->get_root()->coord[1];
+    Point region_LD = region->coord[0];
+    Point region_RU = region->coord[1];
+    if(cur.x >= region_LD.x && cur.y >= region_LD.y && RU.x <= region_RU.x && RU.y <= region_RU.y)
+    {
+        return cur;
+    }
+    if(cur.x < region_LD.x)
+    {
+        int displace = region_LD.x - cur.x;
+        RU.x = RU.x + displace;
+        cur.x = region_LD.x;
+    }
+    if(cur.y < region_LD.y)
+    {
+        int displace = region_LD.y - cur.y;
+        RU.y = RU.y + displace;
+        cur.y = region_LD.y;
+    }
+    if(RU.x > region_RU.x)
+    {
+        int displace = region_RU.x - RU.x;
+        cur.x = cur.x + displace;
+        RU.x = region_RU.x;
+    }
+    if(RU.y > region_RU.y)
+    {
+        int displace = region_RU.y - RU.y;
+        cur.y = cur.y + displace;
+        RU.y = region_RU.y;
+    }
+    return cur;
+}

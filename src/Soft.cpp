@@ -482,11 +482,16 @@ void findCurLeftRight(vector<Tile*> WspaceSet, int givenWhiteNo, int& curMaxLeft
 #include<stack>
 Tile Plane::findUsableRect(Tile* included, Tile* objective)
 {
+	//cout<<"OBJECTIVE : "<<*objective<<endl;
+	if(width(included) >= width(objective) && height(included) >= height(objective))
+		return *included;
+
 	list<Tile> accepted_list;
 	//include : the tile that is found must include this tile;
 	//objective : the height/width of the tile
 	stack<Tile> searching_list;
 	searching_list.push(*included);
+	int tile_width = width(included);
 	while(!searching_list.empty())
 	{
 		Tile header = searching_list.top();
@@ -504,6 +509,8 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 			if(width(&to_find) < width(objective))
 				continue;
 			Tile pseudo = Tile(Point(RU(&to_find).y-height(objective)+1,LD(&to_find).x),RU(&to_find));
+			//cout<<"PSEUDO : "<<pseudo<<endl;
+			//cout<<"CHECK : "<<checkAllSpace(&pseudo,included)<<endl;
 			if(checkAllSpace(&pseudo,included))
 			{
 				accepted_list.push_back(pseudo);
@@ -546,6 +553,7 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 	Tile to_return;
 	for(Tile& T : accepted_list)
 	{
+		cout<<"ACCEPTED : "<<T<<endl;
 		Point vec = objective->coord[0] + objective->coord[1] - T.coord[0] - T.coord[1];
 		double cur_dist = (abs(vec.x) + abs(vec.y))/2;
 		if(dist >= cur_dist)

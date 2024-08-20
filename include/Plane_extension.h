@@ -103,11 +103,11 @@ class Plane_E : public Plane
         std::vector<Inst*> get_not_legal_location();    //for location only don't care clk domain, pin data etc
         bool is_legal();
         void location_legalization(std::vector<Inst*>);
-        void location_legalization(){location_legalization(this->FF_list);};
+        void location_legalization(){location_legalization(this->FF_list_bank);};
 
         //L.D. loc getter
         void location_to_P_Row(std::vector<Inst*>);
-        void location_to_P_Row(){location_to_P_Row(this->FF_list);};
+        void location_to_P_Row(){location_to_P_Row(this->FF_list_bank);};
         Point random();
         Point closest_Legal_locs(Point);
         

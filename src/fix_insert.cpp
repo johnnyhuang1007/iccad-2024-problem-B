@@ -8,13 +8,13 @@ int main(int argc, char** argv)
 {
 
     Plane_E chip(argv[1]);
-    chip.debank();
+    //chip.debank();
     chip.write_input_format("input.txt");
     cout<<"HPWL OPTIMIZATION"<<endl;
     double weight = 5000;
     while(weight > 4999)
     {
-        for(int i = 0 ; i < 40 ; i++)
+        for(int i = 0 ; i < 5 ; i++)
         {
             chip.update_slack_pin_weight(weight);
             chip.HPWL_optimizer();
@@ -22,6 +22,8 @@ int main(int argc, char** argv)
         }
         weight*=0.9;
     }
+    chip.location_legalization();
+    return 0;
     chip.bank();
     weight = 5000;
     while(weight > 100)

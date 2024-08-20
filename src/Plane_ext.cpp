@@ -771,34 +771,52 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
 
     for(auto& FF: to_fix)
     {
+        cout<<negative_slack<<endl;
+        cout<<FF->idx<<endl;
+        cout<<FF->get_name()<<endl; 
         if(insert_inst(FF))
         {
             continue;
         }
+        //cout<<"FAIL"<<endl;
         Tile pseudo_tile = Tile(FF->get_root());
+        //cout<<"REQURIED SIZE"   <<endl;
+        //cout<<pseudo_tile<<endl;
+
         bool inserted = 0;
         vector<Tile> possible_tiles;
         vector<Tile*> space_vec;
         find:
         while(!inserted)
         {
+            
+            //cout<<"SEARECHING REGION"<<endl;
+            //cout<<pseudo_tile<<endl;
             vector<Tile*> solid_vec = getSolidTileInRegion(&pseudo_tile);
             //find min size to include all the solid
+            //cout<<"REGION SOLID"<<endl;
             for(auto& solid : solid_vec)
             {
+                //cout<<*solid<<endl;
                 if(RU(solid).x > RU(&pseudo_tile).x)
-                    RU(&pseudo_tile).x = RU(solid).x;
+                    RU(&pseudo_tile).x = RU(solid).x+1;
                 if(RU(solid).y > RU(&pseudo_tile).y)
-                    RU(&pseudo_tile).y = RU(solid).y;
+                    RU(&pseudo_tile).y = RU(solid).y+1;
                 if(LD(solid).x < LD(&pseudo_tile).x)
-                    LD(&pseudo_tile).x = LD(solid).x;
+                    LD(&pseudo_tile).x = LD(solid).x-1;
                 if(LD(solid).y < LD(&pseudo_tile).y)
-                    LD(&pseudo_tile).y = LD(solid).y;
+                    LD(&pseudo_tile).y = LD(solid).y-1;
             }
 
+            //cout<<"SEARECHING REGION"<<endl;
+            
+            //cout<<pseudo_tile<<endl;
             vector<Tile*> region_spaces = getSpaceTileInRegion(&pseudo_tile);
+            cout<<pseudo_tile<<endl;
+            //cout<<"REGION SPACE"<<endl;
             for(auto& space : region_spaces)
             {
+                //cout<<*space<<endl;
                 if(RU(space).x > RU(&pseudo_tile).x)
                     RU(&pseudo_tile).x = RU(space).x;
                 if(RU(space).y > RU(&pseudo_tile).y)
@@ -808,6 +826,10 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
                 if(LD(space).y < LD(&pseudo_tile).y)
                     LD(&pseudo_tile).y = LD(space).y;
             }
+            RU(&pseudo_tile).x++;
+            RU(&pseudo_tile).y++;
+            LD(&pseudo_tile).x--;
+            LD(&pseudo_tile).y--;
             //space_vec = region_spaces or space_vec;
             list<Tile*> to_search;
             //to_search = region_spaces exclude space_vec;
@@ -827,7 +849,11 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
             }
             for(auto& space : to_search)
             {
+                //cout<<"SEARCHING"<<endl;
+                //cout<<*space<<endl;
                 Tile to_push = findUsableRect(space, FF->get_root());
+                //cout<<"RESULT"<<endl;
+                //cout<<to_push<<endl;
                 if(RU(&to_push).x != -999999999)
                 {
                     inserted = 1;
@@ -835,18 +861,27 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
                 }
             }
         }
-        
+        inserted = 0;
         double dist = 999999999;
         Tile* best_tile = NULL;
         //sort by distance between FF and tile
         sort(possible_tiles.begin(),possible_tiles.end(),\
         [FF](Tile a, Tile b){return (abs(a.coord[0].x - FF->LeftDown().x) + abs(a.coord[0].y - FF->LeftDown().y)) < (abs(b.coord[0].x - FF->LeftDown().x) + abs(b.coord[0].y - FF->LeftDown().y));});
-        
+        //for(Tile t:possible_tiles)
+        //{
+        //    cout<<t<<endl;
+        //}
         bool success = 0;
+        Point org = FF->LeftDown();
         for(Tile pos : possible_tiles)
         {
-            Point to_insert_pos = min_displacement_loc(FF,best_tile);//condition and region
+            cout<<"TRYING: "<<pos<<endl;
+            Point to_insert_pos = min_displacement_loc(FF,&pos);//condition and region
+            //cout<<"to_insert_pos "<<to_insert_pos<<endl;
             Point NewP = closest_Legal_locs(to_insert_pos);
+            //cout<<NewP<<endl;
+            //cout<<"INSERTION"  <<endl;
+            set_and_propagate(FF,NewP);
             if(insert_inst(FF))
             {
                 success = 1;
@@ -854,7 +889,10 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
             }
         }
         if(!success)
+        {
+            set_and_propagate(FF,org);
             goto find;
+        }
     }
 
 }

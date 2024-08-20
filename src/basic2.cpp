@@ -191,31 +191,34 @@ vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile)
 	
 	int current_height = RU(inTile).y;
 	int current_lower = LD(inTile).y;
+	//cout<<"SEARCHING SPACE"<<endl;
 	while (1)
 	{
-		
+		//cout<<*curSpace<<endl;
 		if (curSpace->is_space())
 			return_list.push_back(curSpace);
 		if(current_height > RU(curSpace).y)
 			current_height = RU(curSpace).y;
 		
-		Point tmp;
-		if(RU(curSpace).y >= RU(inTile).y)	//this mean this row has done searching
-		{
-			tmp.y = ++current_height;
-			current_lower = current_height;
-			tmp.x = LD(inTile).x;
-			if(tmp.y > RU(inTile).y)
-				break;
-		}
-		else
+		Point tmp; 
+		if(RU(curSpace).x < RU(inTile).x)
 		{
 			tmp.x = RU(curSpace).x + 1;
 			tmp.y = current_lower;
 		}
+		else if(RU(curSpace).y < RU(inTile).y)	//this mean this row has done searching
+		{
+			tmp.y = ++current_height;
+			current_lower = current_height;
+			tmp.x = LD(inTile).x;
+		}
+		else
+		{
+			break;
+		}
 		curSpace = point_finding(tmp, curSpace);
 	}
-
+	//cout<<"END OF SEARCH"<<endl;
 	vector<Tile*> res{return_list.begin(),return_list.end()};
 	return res;
 }
@@ -226,31 +229,35 @@ std::vector<Tile*> Plane::getSolidTileInRegion(Tile* inTile)
 	
 	int current_height = RU(inTile).y;
 	int current_lower = LD(inTile).y;
+	//cout<<"SEARCHING SOLID"<<endl;
 	while (1)
 	{
-		
+		//cout<<*curSpace<<endl;
 		if (!curSpace->is_space())
 			return_list.push_back(curSpace);
 		if(current_height > RU(curSpace).y)
 			current_height = RU(curSpace).y;
 		
 		Point tmp;
-		if(RU(curSpace).y >= RU(inTile).y)	//this mean this row has done searching
-		{
-			tmp.y = ++current_height;
-			current_lower = current_height;
-			tmp.x = LD(inTile).x;
-			if(tmp.y > RU(inTile).y)
-				break;
-		}
-		else
+		if(RU(curSpace).x < RU(inTile).x)
 		{
 			tmp.x = RU(curSpace).x + 1;
 			tmp.y = current_lower;
 		}
+		else if(RU(curSpace).y < RU(inTile).y)	//this mean this row has done searching
+		{
+			tmp.y = ++current_height;
+			current_lower = current_height;
+			tmp.x = LD(inTile).x;
+		}
+		else
+		{
+			break;
+		}
 		curSpace = point_finding(tmp, curSpace);
 	}
 
+	//cout<<"END OF SEARCH"<<endl;
 	vector<Tile*> res{return_list.begin(),return_list.end()};
 	return res;
 }
