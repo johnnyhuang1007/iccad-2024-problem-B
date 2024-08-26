@@ -480,6 +480,63 @@ void findCurLeftRight(vector<Tile*> WspaceSet, int givenWhiteNo, int& curMaxLeft
 }
 
 #include<stack>
+
+Tile Plane::findUsableRectFast(Tile* included, Tile* objective)	//include is white space
+{
+
+	if(width(included) < width(objective))
+		return Tile(Point(-999999999,-999999999),Point(-999999999,-999999999));
+
+	Tile all_and_up = Tile(LD(included),Point(LD(included).y + height(objective) -1 ,RU(included).x));
+	Tile all_and_lower = Tile(Point(RU(included).y - height(objective) +1,LD(included).x),RU(included));
+	bool unacceptable_up = 0 , unacceptable_lower = 0;
+	if(!checkAllSpace(&all_and_up,included))
+		unacceptable_up = 1;
+
+	if(!checkAllSpace(&all_and_lower,included))
+		unacceptable_lower = 1;
+	
+	if(!unacceptable_up && !unacceptable_lower)
+	{
+		Point inclusion_RU;
+		inclusion_RU.x = RU(included).x;
+		if(LD(included).y + height(objective) -1 > RU(included).y)
+			inclusion_RU.y = LD(included).y + height(objective) -1;
+		else
+			inclusion_RU.y = RU(included).y;
+
+		Point inclusion_LD;
+		inclusion_LD.x = LD(included).x;
+		if(RU(included).y - height(objective) +1 < LD(included).y)
+			inclusion_LD.y = RU(included).y - height(objective) +1;
+		else
+			inclusion_LD.y = LD(included).y;
+		return Tile(inclusion_LD,inclusion_RU);
+	}
+	if(!unacceptable_lower)
+		return all_and_lower;
+	if(!unacceptable_up)
+		return all_and_up;
+	
+	
+
+	Tile RU_accept = Tile(Point(RU(included).y - height(objective)+1,RU(included).x - width(included)+1),RU(included));
+	Tile RD_accept = Tile(Point(LD(included).y,RU(included).x-width(included) +1),Point(LD(included).y + height(objective) -1,RU(included).x));
+	Tile LU_accept = Tile(Point(RU(included).y - height(objective)+1,LD(included).x),Point(RU(included).y,LD(included).x + width(included) -1));
+	Tile LD_accept = Tile(LD(included),Point(LD(included).y + height(objective) -1,LD(included).x + width(included) -1));
+
+	if(checkAllSpace(&RU_accept,included))
+		return RU_accept;
+	if(checkAllSpace(&RD_accept,included))
+		return RD_accept;
+	if(checkAllSpace(&LU_accept,included))
+		return LU_accept;
+	if(checkAllSpace(&LD_accept,included))
+		return LD_accept;
+	
+	return findUsableRect(included, objective);
+}
+
 Tile Plane::findUsableRect(Tile* included, Tile* objective)
 {
 	//cout<<"OBJECTIVE : "<<*objective<<endl;
@@ -497,7 +554,7 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 		Tile header = searching_list.top();
 		searching_list.pop();
 		Tile upper = Tile(Point(RU(&header).y+1,LD(&header).x), Point(RU(&header).y+1,RU(&header).x));
-		vector<Tile*> neighbor = getSpaceTileInRegion(&upper);
+		vector<Tile*> neighbor = getSpaceTileInRegion(&upper,included);
 		for(int i = 0 ; i < neighbor.size() ; i++)
 		{
 			Tile to_find = *neighbor[i];
@@ -508,15 +565,12 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 			/*make a sudo tile*/
 			if(width(&to_find) < width(objective))
 				continue;
-			Tile pseudo = Tile(Point(RU(&to_find).y-height(objective)+1,LD(&to_find).x),RU(&to_find));
-			//cout<<"PSEUDO : "<<pseudo<<endl;
-			//cout<<"CHECK : "<<checkAllSpace(&pseudo,included)<<endl;
-			if(checkAllSpace(&pseudo,included))
+			if(RU(&to_find).y - LD(included).y + 1 < height(objective))
 			{
-				accepted_list.push_back(pseudo);
+				searching_list.push(to_find);
 				continue;
 			}
-			searching_list.push(to_find);
+			accepted_list.push_back(Tile(Point(LD(included).y,LD(&to_find).x),RU(&to_find)));
 		}
 	}
 	searching_list.push(*included);
@@ -525,7 +579,7 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 		Tile header = searching_list.top();
 		searching_list.pop();
 		Tile lower = Tile(Point(LD(&header).y-1,LD(&header).x), Point(LD(&header).y-1,RU(&header).x));
-		vector<Tile*> neighbor = getSpaceTileInRegion(&lower);
+		vector<Tile*> neighbor = getSpaceTileInRegion(&lower,included);
 		for(int i = 0 ; i < neighbor.size() ; i++)
 		{
 			Tile to_find = *neighbor[i];
@@ -536,16 +590,15 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 			/*make a sudo tile*/
 			if(width(&to_find) < width(objective))
 				continue;
-			Tile pseudo = Tile(LD(&to_find),Point(LD(&to_find).x + height(objective)-1,RU(&to_find).x));
-			if(checkAllSpace(&pseudo,included))
+			if(RU(included).y - LD(&to_find).y + 1 < height(objective))
 			{
-				accepted_list.push_back(pseudo);
+				searching_list.push(to_find);
 				continue;
 			}
-			searching_list.push(to_find);
+			accepted_list.push_back(Tile(LD(&to_find),Point(RU(included).y, RU(&to_find).x)));
 		}
 	}
-	if(searching_list.size() == 0)
+	if(accepted_list.size() == 0)
 	{
 		return Tile(Point(-999999999,-999999999),Point(-999999999,-999999999));
 	}
@@ -553,15 +606,21 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 	Tile to_return;
 	for(Tile& T : accepted_list)
 	{
-		cout<<"ACCEPTED : "<<T<<endl;
+		
 		Point vec = objective->coord[0] + objective->coord[1] - T.coord[0] - T.coord[1];
 		double cur_dist = (abs(vec.x) + abs(vec.y))/2;
 		if(dist >= cur_dist)
 		{
+			//cout<<"ACCEPTED : "<<T<<endl;
 			dist = cur_dist;
 			to_return = T;
 		}
 	}
+	to_return.stitch[0] = NULL;
+	to_return.stitch[1] = NULL;
+	to_return.stitch[2] = NULL;
+	to_return.stitch[3] = NULL;
+
 	return to_return;
 }
 

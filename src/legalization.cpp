@@ -1,0 +1,431 @@
+#include "Plane_extension.h"
+#include <fstream>
+#include<iomanip>
+#define u_map_itr(T) unordered_map<std::string,T>::const_iterator
+using namespace std;
+
+bool slack_compare(Inst* a, Inst* b)
+{
+    double slack1 = 0;
+    double slack2 = 0;
+    for(Pin* p:a->INs)
+        slack1 += p->slack;
+    for(Pin* p:b->INs)
+        slack2 += p->slack;
+    return slack1 < slack2;
+}
+
+void Plane_E::location_legalization(vector<Inst*> to_fix)
+{
+    
+    sort(to_fix.begin(),to_fix.end(),slack_compare);
+    int cnt = 0;
+    for(auto& FF: to_fix)
+    {
+        cout<<cnt++<<endl;
+        cout<<negative_slack<<endl;
+        //cout<<FF->idx<<endl;
+        //cout<<FF->get_name()<<endl; 
+        if(insert_inst(FF))
+        {
+            continue;
+        }
+        //cout<<"FAIL"<<endl;
+        Tile pseudo_tile = Tile(FF->get_root());
+        //cout<<"REQURIED SIZE"   <<endl;
+        //cout<<pseudo_tile<<endl;
+
+        bool inserted = 0;
+        vector<Tile> possible_tiles;
+        vector<Tile*> space_vec;
+        Tile* start = point_finding(FF->LeftDown());
+        find:
+        while(!inserted)
+        {
+            
+            //cout<<"SEARECHING REGION"<<endl;
+            //cout<<pseudo_tile<<endl;
+            start = point_finding(LD(&pseudo_tile),start);
+            vector<Tile*> solid_vec = getSolidTileInRegion(&pseudo_tile,start);
+            //find min size to include all the solid
+            //cout<<"REGION SOLID"<<endl;
+            for(auto& solid : solid_vec)
+            {
+                //cout<<*solid<<endl;
+                if(RU(solid).x > RU(&pseudo_tile).x)
+                    RU(&pseudo_tile).x = RU(solid).x;
+                if(RU(solid).y > RU(&pseudo_tile).y)
+                    RU(&pseudo_tile).y = RU(solid).y;
+                if(LD(solid).x < LD(&pseudo_tile).x)
+                    LD(&pseudo_tile).x = LD(solid).x;
+                if(LD(solid).y < LD(&pseudo_tile).y)
+                    LD(&pseudo_tile).y = LD(solid).y;
+            }
+            int delta_height = (width(&pseudo_tile) - height(&pseudo_tile))/2;
+            if(width(&pseudo_tile) > height(&pseudo_tile))
+            {
+                LD(&pseudo_tile).y -= delta_height;
+                RU(&pseudo_tile).y += delta_height;
+            }
+            if(RU(&pseudo_tile).x < Width -1)
+                RU(&pseudo_tile).x++;
+            else
+                RU(&pseudo_tile).x = Width -1;
+            if(RU(&pseudo_tile).y < Height -1)
+                RU(&pseudo_tile).y++;
+            else
+                RU(&pseudo_tile).y = Height -1;
+            if(LD(&pseudo_tile).x > 1)  //TOFIX 
+                LD(&pseudo_tile).x--;
+            else
+                LD(&pseudo_tile).x = 1;
+            if(LD(&pseudo_tile).y > 1)
+                LD(&pseudo_tile).y--;
+            else
+                LD(&pseudo_tile).y = 1;
+            //cout<<"SEARECHING REGION"<<endl;
+            
+            //cout<<pseudo_tile<<endl;
+            start = point_finding(LD(&pseudo_tile),start);
+            vector<Tile*> region_spaces = getSpaceTileInRegion(&pseudo_tile,start);
+            cout<<pseudo_tile<<endl;
+            //cout<<"REGION SPACE"<<endl;
+            for(auto& space : region_spaces)
+            {
+                if(width(space) > width(&pseudo_tile) * 2)
+                    continue;
+                //cout<<*space<<endl;
+                if(RU(space).x > RU(&pseudo_tile).x)
+                    RU(&pseudo_tile).x = RU(space).x;
+                if(RU(space).y > RU(&pseudo_tile).y)
+                    RU(&pseudo_tile).y = RU(space).y;
+                if(LD(space).x < LD(&pseudo_tile).x)
+                    LD(&pseudo_tile).x = LD(space).x;
+                if(LD(space).y < LD(&pseudo_tile).y)
+                    LD(&pseudo_tile).y = LD(space).y;
+            }
+            delta_height = (width(&pseudo_tile) - height(&pseudo_tile))/2;
+            if(width(&pseudo_tile) > height(&pseudo_tile))
+            {
+                LD(&pseudo_tile).y -= delta_height;
+                RU(&pseudo_tile).y += delta_height;
+            }
+            
+            if(RU(&pseudo_tile).x < Width -1)
+                RU(&pseudo_tile).x++;
+            else
+                RU(&pseudo_tile).x = Width -1;
+            if(RU(&pseudo_tile).y < Height -1)
+                RU(&pseudo_tile).y++;
+            else
+                RU(&pseudo_tile).y = Height -1;
+            if(LD(&pseudo_tile).x > 1)  //TOFIX 
+                LD(&pseudo_tile).x--;
+            else
+                LD(&pseudo_tile).x = 1;
+            if(LD(&pseudo_tile).y > 1)
+                LD(&pseudo_tile).y--;
+            else
+                LD(&pseudo_tile).y = 1;
+            //space_vec = region_spaces or space_vec;
+            list<Tile*> to_search;
+            //to_search = region_spaces exclude space_vec;
+            for(auto& space : region_spaces)
+            {
+                bool is_in = 0;
+                for(auto& space2 : space_vec)
+                {
+                    if(space == space2)
+                    {
+                        is_in = 1;
+                        break;
+                    }
+                }
+                if(!is_in)
+                    to_search.push_back(space);
+            }
+            for(auto& space : to_search)
+            {
+                //cout<<"SEARCHING"<<endl;
+                //cout<<*space<<endl;
+                Tile to_push = findUsableRect(space, FF->get_root());
+                //cout<<"RESULT"<<endl;
+                //cout<<to_push<<endl;
+                if(RU(&to_push).x != -999999999)
+                {
+                    inserted = 1;
+                    possible_tiles.push_back(to_push);
+                }
+            }
+        }
+        inserted = 0;
+        double dist = 999999999;
+        Tile* best_tile = NULL;
+        //sort by distance between FF and tile
+        sort(possible_tiles.begin(),possible_tiles.end(),\
+        [FF](Tile a, Tile b){return (abs(a.coord[0].x - FF->LeftDown().x) + abs(a.coord[0].y - FF->LeftDown().y)) < (abs(b.coord[0].x - FF->LeftDown().x) + abs(b.coord[0].y - FF->LeftDown().y));});
+        //for(Tile t:possible_tiles)
+        //{
+        //    cout<<t<<endl;
+        //}
+        bool success = 0;
+        Point org = FF->LeftDown();
+        for(Tile pos : possible_tiles)
+        {
+            //cout<<"TRYING: "<<pos<<endl;
+            Point to_insert_pos = min_displacement_loc(FF,&pos);//condition and region  //use packing method and need to be legal
+            //cout<<"to_insert_pos "<<to_insert_pos<<endl;
+            if(to_insert_pos.x > Width)
+                continue;
+            //cout<<NewP<<endl;
+            //cout<<"INSERTION"  <<endl;
+            set_and_propagate(FF,to_insert_pos);
+            //cout<<"INSERTION";
+            if(insert_inst(FF))
+            {
+                success = 1;
+                //cout<<" SUCCESS"<<endl;
+                break;
+            }
+            //cout<<" FAIL"<<endl;
+        }
+        if(!success)
+        {
+            set_and_propagate(FF,org);
+            goto find;
+        }
+    }
+
+}
+
+
+Point Plane_E::min_displacement_loc(Inst* condition, Tile* region)
+{
+   // cout<<"REGION "<<*region<<endl;
+   // cout<<"CONDITION "<<*condition->get_root()<<endl;
+    //cout<<"Width "<<width(condition)<<endl;
+    //cout<<"Height "<<height(condition)<<endl;
+    Point cur = condition->LeftDown();
+    Point RU = condition->get_root()->coord[1];
+    Point region_LD = region->coord[0];
+    Point region_RU = region->coord[1];
+    int LD_yidx = placement_row_idx(region_LD);
+    int RU_yidx = placement_row_idx(region_RU - Point(height(condition) - 1,0));
+    while(PlacementRows[LD_yidx].left_down.y < region_LD.y)
+    {
+        LD_yidx++;
+    } 
+    if(PlacementRows[RU_yidx+1].left_down.y <= region_RU.y - height(condition) + 1)
+        RU_yidx++;
+    while(PlacementRows[RU_yidx].left_down.y > region_RU.y - height(condition) + 1)
+    {
+        RU_yidx--;
+    } 
+
+    
+    //cout<<"LD_yidx "<<PlacementRows[LD_yidx].left_down.y<<endl;
+    //cout<<"RU_yidx "<<PlacementRows[RU_yidx].left_down.y<<endl;
+    int min_dist = 100*(Height + Width);
+    Point insert(Height,Width);
+
+    for(int i = LD_yidx ; i <= RU_yidx ; i++)
+    {
+        int LD_xidx = (region_LD.x - PlacementRows[i].left_down.x)/PlacementRows[i].siteWidth;
+        if((region_LD.x - PlacementRows[i].left_down.x)%PlacementRows[i].siteWidth!=0)
+            LD_xidx++;
+        if(LD_xidx < 0)
+            LD_xidx = 0;
+        if(LD_xidx >= PlacementRows[i].count)
+            LD_xidx = PlacementRows[i].count -1;
+        
+        int RU_xidx = (region_RU.x - width(condition) + 1 - PlacementRows[i].left_down.x)/PlacementRows[i].siteWidth;
+        if(RU_xidx < 0)
+            RU_xidx = 0;
+        if(RU_xidx >= PlacementRows[i].count)
+            RU_xidx = PlacementRows[i].count -1;
+        
+        //cout<<"cur I "<<i<<endl;
+        //cout<<"LD_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx<<endl;
+        //cout<<"RU_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * RU_xidx<<endl;
+        if(LD_xidx > RU_xidx)
+            continue;
+        if(PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx + width(condition) - 1 > region_RU.x)
+            continue;
+        Point vec = Point(PlacementRows[i].left_down.y,PlacementRows[i].left_down.x + PlacementRows[i].siteWidth *LD_xidx)  - LD(condition);
+        int cur_dist = abs(vec.x) + abs(vec.y);
+        if(cur_dist < min_dist)
+        {
+            min_dist = cur_dist;
+            insert = Point(PlacementRows[i].left_down.y,PlacementRows[i].left_down.x + PlacementRows[i].siteWidth *LD_xidx);
+        }
+
+        vec = Point(PlacementRows[i].left_down.y,PlacementRows[i].left_down.x + PlacementRows[i].siteWidth *RU_xidx)  - LD(condition);
+        cur_dist = abs(vec.x) + abs(vec.y);
+        if(cur_dist < min_dist)
+        {
+            min_dist = cur_dist;
+            insert = Point(PlacementRows[i].left_down.y,PlacementRows[i].left_down.x + PlacementRows[i].siteWidth *RU_xidx);
+        }
+
+    }
+
+    return insert;
+}
+
+
+void Plane_E::loc_sequence_based_legalization()
+{
+    vector<Inst*> FFs_x;
+    vector<Inst*> FFs_y;
+    FFs_x = FF_list_bank;
+    FFs_y = FF_list_bank;
+    sort(FFs_x.begin(),FFs_x.end(),[](Inst* a, Inst* b){return a->LeftDown().x < b->LeftDown().x;});
+    sort(FFs_x.begin(),FFs_x.end(),[](Inst* a, Inst* b){return a->LeftDown().y < b->LeftDown().y;});
+
+    int min_allowed_x = Height;
+    for(int i = 0 ; i < PlacementRows.size() ; i++)
+    {
+        if(min_allowed_x > PlacementRows[i].left_down.x)
+            min_allowed_x = PlacementRows[i].left_down.x;
+    }
+    int min_allowed_y = PlacementRows[0].left_down.y;
+    int max_allowed_x = -1;
+    for(int i = 0 ; i < PlacementRows.size() ; i++)
+    {
+        if(max_allowed_x < PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * (PlacementRows[i].count-1))
+            max_allowed_x = PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * (PlacementRows[i].count-1);
+    }
+
+    int max_allowed_y = PlacementRows[PlacementRows.size()-1].left_down.y;
+
+    //obj: min overlap and min slack
+    if(FFs_x.front()->LeftDown().x < min_allowed_x)
+    {
+        set_and_propagate(FFs_x.front(),Point(FFs_x.front()->LeftDown().y,min_allowed_x));
+    }
+    if(FFs_x.back()->LeftDown().x > max_allowed_x)
+    {
+        set_and_propagate(FFs_x.back(),Point(FFs_x.back()->LeftDown().y,max_allowed_x));
+    }
+
+    if(FFs_y.front()->LeftDown().y < min_allowed_y)
+    {
+        set_and_propagate(FFs_y.front(),Point(min_allowed_y,FFs_y.front()->LeftDown().x));
+    }
+    if(FFs_y.back()->LeftDown().y > max_allowed_y)
+    {
+        set_and_propagate(FFs_y.back(),Point(max_allowed_y,FFs_y.back()->LeftDown().x));
+    }
+
+    int min_total_slack = 100000000000;
+    int center_x;
+    int center_y;
+    for(int i = 0 ; i < FFs_x.size() ; i++)
+    {
+        int total_slack = 0;
+        for(Pin* p:FFs_x[i]->INs)
+        {
+            total_slack += p->slack;
+        }
+        if(total_slack < min_total_slack)
+        {
+            min_total_slack = total_slack;
+            center_x = i;
+        }
+    }
+    min_total_slack = 100000000000;
+    for(int i = 0 ; i < FFs_y.size() ; i++)
+    {
+        int total_slack = 0;
+        for(Pin* p:FFs_y[i]->INs)
+        {
+            total_slack += p->slack;
+        }
+        if(total_slack < min_total_slack)
+        {
+            min_total_slack = total_slack;
+            center_y = i;
+        }
+    }
+
+    for(int i = center_x ; i < FFs_x.size()-1 ; i++)
+    {
+        if(overlappingArea(FFs_x[i],FFs_x[i+1]) > 0)
+        {
+            int movement = FFs_x[i]->LeftDown().x + width(FFs_x[i]) - FFs_x[i+1]->LeftDown().x;
+            if(i+1 == FFs_x.size()-1)
+            {
+                if(FFs_x[i+1]->LeftDown().x + movement > max_allowed_x)
+                {
+                    movement = max_allowed_x - FFs_x[i+1]->LeftDown().x;
+                }
+            }
+            else if(FFs_x[i+1]->LeftDown().x + movement > FFs_x[i+2]->LeftDown().x)
+            {
+                movement = FFs_x[i+2]->LeftDown().x - FFs_x[i+1]->LeftDown().x;
+            }
+            set_and_propagate(FFs_x[i+1],Point(FFs_x[i+1]->LeftDown().y,FFs_x[i+1]->LeftDown().x + movement));
+        }
+    }
+
+    for(int i = center_x ; i > 0 ; i--)
+    {
+        if(overlappingArea(FFs_x[i],FFs_x[i-1]) > 0)
+        {
+            int movement = FFs_x[i]->LeftDown().x - FFs_x[i-1]->LeftDown().x - width(FFs_x[i-1]);
+            if(i-1 == 0)
+            {
+                if(FFs_x[i-1]->LeftDown().x + movement < min_allowed_x)
+                {
+                    movement = min_allowed_x - FFs_x[i-1]->LeftDown().x;
+                }
+            }
+            else if(FFs_x[i-1]->LeftDown().x + movement < FFs_x[i-2]->LeftDown().x)
+            {
+                movement = FFs_x[i-2]->LeftDown().x - FFs_x[i-1]->LeftDown().x;
+            }
+            set_and_propagate(FFs_x[i-1],Point(FFs_x[i-1]->LeftDown().y,FFs_x[i+1]->LeftDown().x + movement));
+        }
+    }
+
+    for(int i = center_y ; i < FFs_y.size()-1 ; i++)
+    {
+        if(overlappingArea(FFs_y[i],FFs_y[i+1]) > 0)
+        {
+            int movement = FFs_y[i]->LeftDown().y + height(FFs_y[i]) - FFs_y[i+1]->LeftDown().y;
+            if(i+1 == FFs_y.size()-1)
+            {
+                if(FFs_y[i+1]->LeftDown().y + movement > max_allowed_y)
+                {
+                    movement = max_allowed_y - FFs_y[i+1]->LeftDown().y;
+                }
+            }
+            else if(FFs_y[i+1]->LeftDown().y + movement > FFs_y[i+2]->LeftDown().y)
+            {
+                movement = FFs_y[i+2]->LeftDown().y - FFs_y[i+1]->LeftDown().y;
+            }
+            set_and_propagate(FFs_y[i+1],Point(FFs_y[i+1]->LeftDown().y + movement,FFs_y[i+1]->LeftDown().x));
+        }
+    }
+
+    for(int i = center_y ; i > 0 ; i--)
+    {
+        if(overlappingArea(FFs_y[i],FFs_y[i-1]) > 0)
+        {
+            int movement = FFs_y[i]->LeftDown().y - FFs_y[i-1]->LeftDown().y - height(FFs_x[i-1]);
+            if(i-1 == 0)
+            {
+                if(FFs_y[i-1]->LeftDown().y + movement < min_allowed_y)
+                {
+                    movement = min_allowed_y - FFs_y[i-1]->LeftDown().y;
+                }
+            }
+            else if(FFs_y[i-1]->LeftDown().y + movement < FFs_y[i-2]->LeftDown().y)
+            {
+                movement = FFs_y[i-2]->LeftDown().y - FFs_y[i-1]->LeftDown().y;
+            }
+            set_and_propagate(FFs_x[i-1],Point(FFs_x[i-1]->LeftDown().y + movement,FFs_x[i+1]->LeftDown().x));
+        }
+    }
+
+}

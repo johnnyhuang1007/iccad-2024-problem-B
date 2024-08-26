@@ -109,6 +109,8 @@ class Inst:public Fixed_Module
     double slack_val;
     std::list<Inst*> max_slack_sequence;
 
+    bool is_gate(){return corr_data->name[0]!='F';}
+    bool is_ff(){return corr_data->name[0]=='F';}
 
     bool inserted = 0;
     Inst(std::string a, Point b, int c, int d);//name ld height width    
@@ -119,6 +121,8 @@ class Inst:public Fixed_Module
 
     Point FF_RightUp(){return this->LeftDown() + Point(this->corr_data->height,this->corr_data->width);}
     Point Tile_RightUp(){return RU(get_root());}
+
+    Point center(){return LeftDown() + Point(corr_data->height/2,corr_data->width/2);}
     void set_new_loc(Point); //it set new loc, but it isn't responsible to insertion
     void set_DQC(); // it move pins from pins to its type, and sorted in order;
 };
@@ -137,7 +141,6 @@ double HPWL(net*);
 int height(Inst* cur);
 int width(Inst* cur);
 
-Point min_displacement_loc(Inst*, Tile*);
 
 #endif
 

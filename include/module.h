@@ -23,7 +23,7 @@ protected:
 	std::list<Wire*> wireSet;
 public:
 	Module(std::string, int);
-	Point center();
+	virtual Point center();
 	int getMinArea() { return min_area; }
 	std::string getName() { return name; }
 	void getWire(Wire* newWire) { wireSet.push_back(newWire); }

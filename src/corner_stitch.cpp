@@ -224,6 +224,8 @@ void Tile::rotate()
 	return;
 }
 
+
+
 void Tile::clearStitch()
 {
 	for (int i = 0; i < 4; i++)

@@ -122,12 +122,18 @@ Plane_E::Plane_E(string input)
         }
     }
     //PlacementRows <startX> <startY> <siteWidth> <siteHeight> <totalNumOfSites>
+    unit_move_x = Height;
+    unit_move_y = Width;
     list<PlacementRow> tmp_row;
     fin>>dummy;
     while(dummy=="PlacementRows")
     {
         PlacementRow t;
         fin>>t.left_down.x >>t.left_down.y>>t.siteWidth>>t.siteHeight>>t.count;
+        if(t.siteWidth < unit_move_x)
+            unit_move_x = t.siteWidth;
+        if(t.siteHeight < unit_move_y)
+            unit_move_y = t.siteHeight;
         tmp_row.push_back(t);
         fin>>dummy;
     }
@@ -185,24 +191,13 @@ Plane_E::Plane_E(string input)
 
 
     violated_bins_cnt = 0;
+    smoothen_bin_util = 0;
     for(int idx = 0 ; idx < G_list.size() ; idx++)
     {
         add_util(G_list[idx]);
-        Point LEFTDOWN = G_list[idx]->LeftDown();
-        Point RIGHTUP = G_list[idx]->RightUp();
-        int idxL = LEFTDOWN.x/BinWidth;
-        int idxR = RIGHTUP.x/BinWidth;
-        int idxU = RIGHTUP.y/BinHeight;
-        int idxD = LEFTDOWN.y/BinHeight;
-        for(int i = idxD ; (i <= idxU) && (i <= (Bins.size()-1)) ; i++)
-        {
-            for(int j = idxL ; (j <= idxR) && (j <= (Bins[i].size()-1)) ; j++ )
-            {
-                Bins[i][j].smoothen_area += overlappingArea(Bins[i][j],G_list[idx]);
-            }
-        }
+        add_smooth_util(G_list[idx]);
     }
-    smoothen_bin_util = 0;
+    cout<<"SMOOOTHEN BIN UTIL "<<smoothen_bin_util<<endl;
     FF_total_area = 0;
     FF_total_power = 0;
     for(int idx = 0 ; idx < FF_list_bank.size() ; idx++)
@@ -213,10 +208,9 @@ Plane_E::Plane_E(string input)
         FF_total_area+=FF_list_bank[idx]->area();
         FF_total_power+=FF_list_bank[idx]->corr_data->power;
     }
-
+    cout<<"SMOOOTHEN BIN UTIL "<<smoothen_bin_util<<endl;
     cout<<violated_bins_cnt<<endl;
     cout<<cost()<<endl;
-
 
     list<net*> tmp_clk_nets;
     for(int i = 0 ; i < net_list.size() ; i++)
@@ -702,6 +696,33 @@ Point Plane_E::random()
     return loc;
 }
 
+int Plane_E::placement_row_idx(Point cur)
+{
+    int y_idx  = 0;
+    if(cur.y >= PlacementRows.back().left_down.y)
+        y_idx = PlacementRows.size()-2;
+    else if(cur.y <= PlacementRows[0].left_down.y)
+        y_idx = 0;
+    else
+    {
+        int move = (PlacementRows.size()+1)/2;
+
+        while(!(PlacementRows[y_idx].left_down.y <= cur.y && PlacementRows[y_idx+1].left_down.y > cur.y))
+        {
+            if(PlacementRows[y_idx].left_down.y > cur.y)
+                y_idx -= move;
+            else
+                y_idx += move;
+            move = (move+1)/2;
+        }
+    }
+    if(y_idx >= PlacementRows.size()-1)
+        y_idx = PlacementRows.size()-1;
+    if(y_idx < 0)   
+        y_idx = 0;
+    return y_idx;
+}
+
 Point Plane_E::closest_Legal_locs(Point cur)    //to Improve
 {
     int y_idx  = 0;
@@ -726,16 +747,22 @@ Point Plane_E::closest_Legal_locs(Point cur)    //to Improve
         y_idx = PlacementRows.size()-2;
     
     int x_idx1  = (cur.x - PlacementRows[y_idx].left_down.x)/PlacementRows[y_idx].siteWidth;
-    if(x_idx1 >= PlacementRows[y_idx].count)
-        x_idx1 = PlacementRows[y_idx].count-1;
     if(cur.x - PlacementRows[y_idx].left_down.x - x_idx1*PlacementRows[y_idx].siteWidth >= PlacementRows[y_idx].siteWidth/2)
         x_idx1++;
+    
+    if(x_idx1 >= PlacementRows[y_idx].count)
+        x_idx1 = PlacementRows[y_idx].count-1;
+    if(x_idx1 < 0)
+        x_idx1 = 0;
 
     int x_idx2  = (cur.x - PlacementRows[y_idx+1].left_down.x)/PlacementRows[y_idx+1].siteWidth;
-    if(x_idx2 >= PlacementRows[y_idx+1].count)
-        x_idx2 = PlacementRows[y_idx+1].count-1;
+    
     if(cur.x - PlacementRows[y_idx+1].left_down.x - x_idx2*PlacementRows[y_idx+1].siteWidth >= PlacementRows[y_idx+1].siteWidth/2)
         x_idx2++;
+    if(x_idx2 >= PlacementRows[y_idx+1].count)
+        x_idx2 = PlacementRows[y_idx+1].count-1;
+    if(x_idx2 < 0)
+        x_idx2 = 0;
 
 
     Point newP1;
@@ -754,148 +781,7 @@ Point Plane_E::closest_Legal_locs(Point cur)    //to Improve
     return newP2;
 };
 
-bool slack_compare(Inst* a, Inst* b)
-{
-    double slack1 = 0;
-    double slack2 = 0;
-    for(Pin* p:a->INs)
-        slack1 += p->slack;
-    for(Pin* p:b->INs)
-        slack2 += p->slack;
-    return slack1 < slack2;
-}
 
-void Plane_E::location_legalization(vector<Inst*> to_fix)
-{
-    sort(to_fix.begin(),to_fix.end(),slack_compare);
-
-    for(auto& FF: to_fix)
-    {
-        cout<<negative_slack<<endl;
-        cout<<FF->idx<<endl;
-        cout<<FF->get_name()<<endl; 
-        if(insert_inst(FF))
-        {
-            continue;
-        }
-        //cout<<"FAIL"<<endl;
-        Tile pseudo_tile = Tile(FF->get_root());
-        //cout<<"REQURIED SIZE"   <<endl;
-        //cout<<pseudo_tile<<endl;
-
-        bool inserted = 0;
-        vector<Tile> possible_tiles;
-        vector<Tile*> space_vec;
-        find:
-        while(!inserted)
-        {
-            
-            //cout<<"SEARECHING REGION"<<endl;
-            //cout<<pseudo_tile<<endl;
-            vector<Tile*> solid_vec = getSolidTileInRegion(&pseudo_tile);
-            //find min size to include all the solid
-            //cout<<"REGION SOLID"<<endl;
-            for(auto& solid : solid_vec)
-            {
-                //cout<<*solid<<endl;
-                if(RU(solid).x > RU(&pseudo_tile).x)
-                    RU(&pseudo_tile).x = RU(solid).x+1;
-                if(RU(solid).y > RU(&pseudo_tile).y)
-                    RU(&pseudo_tile).y = RU(solid).y+1;
-                if(LD(solid).x < LD(&pseudo_tile).x)
-                    LD(&pseudo_tile).x = LD(solid).x-1;
-                if(LD(solid).y < LD(&pseudo_tile).y)
-                    LD(&pseudo_tile).y = LD(solid).y-1;
-            }
-
-            //cout<<"SEARECHING REGION"<<endl;
-            
-            //cout<<pseudo_tile<<endl;
-            vector<Tile*> region_spaces = getSpaceTileInRegion(&pseudo_tile);
-            cout<<pseudo_tile<<endl;
-            //cout<<"REGION SPACE"<<endl;
-            for(auto& space : region_spaces)
-            {
-                //cout<<*space<<endl;
-                if(RU(space).x > RU(&pseudo_tile).x)
-                    RU(&pseudo_tile).x = RU(space).x;
-                if(RU(space).y > RU(&pseudo_tile).y)
-                    RU(&pseudo_tile).y = RU(space).y;
-                if(LD(space).x < LD(&pseudo_tile).x)
-                    LD(&pseudo_tile).x = LD(space).x;
-                if(LD(space).y < LD(&pseudo_tile).y)
-                    LD(&pseudo_tile).y = LD(space).y;
-            }
-            RU(&pseudo_tile).x++;
-            RU(&pseudo_tile).y++;
-            LD(&pseudo_tile).x--;
-            LD(&pseudo_tile).y--;
-            //space_vec = region_spaces or space_vec;
-            list<Tile*> to_search;
-            //to_search = region_spaces exclude space_vec;
-            for(auto& space : region_spaces)
-            {
-                bool is_in = 0;
-                for(auto& space2 : space_vec)
-                {
-                    if(space == space2)
-                    {
-                        is_in = 1;
-                        break;
-                    }
-                }
-                if(!is_in)
-                    to_search.push_back(space);
-            }
-            for(auto& space : to_search)
-            {
-                //cout<<"SEARCHING"<<endl;
-                //cout<<*space<<endl;
-                Tile to_push = findUsableRect(space, FF->get_root());
-                //cout<<"RESULT"<<endl;
-                //cout<<to_push<<endl;
-                if(RU(&to_push).x != -999999999)
-                {
-                    inserted = 1;
-                    possible_tiles.push_back(to_push);
-                }
-            }
-        }
-        inserted = 0;
-        double dist = 999999999;
-        Tile* best_tile = NULL;
-        //sort by distance between FF and tile
-        sort(possible_tiles.begin(),possible_tiles.end(),\
-        [FF](Tile a, Tile b){return (abs(a.coord[0].x - FF->LeftDown().x) + abs(a.coord[0].y - FF->LeftDown().y)) < (abs(b.coord[0].x - FF->LeftDown().x) + abs(b.coord[0].y - FF->LeftDown().y));});
-        //for(Tile t:possible_tiles)
-        //{
-        //    cout<<t<<endl;
-        //}
-        bool success = 0;
-        Point org = FF->LeftDown();
-        for(Tile pos : possible_tiles)
-        {
-            cout<<"TRYING: "<<pos<<endl;
-            Point to_insert_pos = min_displacement_loc(FF,&pos);//condition and region
-            //cout<<"to_insert_pos "<<to_insert_pos<<endl;
-            Point NewP = closest_Legal_locs(to_insert_pos);
-            //cout<<NewP<<endl;
-            //cout<<"INSERTION"  <<endl;
-            set_and_propagate(FF,NewP);
-            if(insert_inst(FF))
-            {
-                success = 1;
-                break;
-            }
-        }
-        if(!success)
-        {
-            set_and_propagate(FF,org);
-            goto find;
-        }
-    }
-
-}
 
 void Plane_E::set_km_result(string input,string output)
 {

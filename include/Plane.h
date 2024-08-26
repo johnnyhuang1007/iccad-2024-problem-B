@@ -71,9 +71,12 @@ public:
 	void ripTillRoot(int);
 
 	bool checkAllSpace(Tile*);
-	bool checkAllSpace(Tile*, Tile*);
+	bool checkAllSpace(Tile*, Tile*);	//fast version
 	std::vector<Tile*> getSpaceTileInRegion(Tile*);
+	std::vector<Tile*> getSpaceTileInRegion(Tile*, Tile*);
 	std::vector<Tile*> getSolidTileInRegion(Tile*);
+	std::vector<Tile*> getSolidTileInRegion(Tile*, Tile*);
+
 	bool checkAllSpace(int idx){return checkAllSpace(Fixed_Module_set[idx]->get_root());}
 	void insertFix(Fixed_Module*);
 	void minHPWLStretch(Soft_Module*);
@@ -87,6 +90,7 @@ public:
 	Point generateSeed(Soft_Module*, Point&);
 	Tile findMaxUsableRect(Point);
 	Tile findUsableRect(Tile*, Tile*);
+	Tile findUsableRectFast(Tile*, Tile*);
 	bool patch(Soft_Module*, int, Point&);
 	bool patchOne(Soft_Module* curSoft, int side, int Constraint);
 	bool fillUp(Soft_Module*, int);

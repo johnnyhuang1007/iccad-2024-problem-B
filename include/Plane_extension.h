@@ -3,6 +3,7 @@
 #include<utility>
 #include<string>
 #include<vector>
+#include<set>
 #include<unordered_map>
 #include "Plane.h"
 #include "module_extension.h"
@@ -59,6 +60,7 @@ class Plane_E : public Plane
         double FF_total_power = 0;
         long long int name_cnter = 0;
         
+        
     public:
         
         std::vector<Inst_data> FF_lib;
@@ -108,8 +110,10 @@ class Plane_E : public Plane
         //L.D. loc getter
         void location_to_P_Row(std::vector<Inst*>);
         void location_to_P_Row(){location_to_P_Row(this->FF_list_bank);};
+        int placement_row_idx(Point cur);
         Point random();
         Point closest_Legal_locs(Point);
+        Point min_displacement_loc(Inst*, Tile*);
         
 
         //L.D. loc setter
@@ -134,6 +138,15 @@ class Plane_E : public Plane
 
         void add_smooth_util(Inst*);
         void min_smooth_util(Inst*);
+
+        void loc_sequence_based_legalization();//buggy
+        void anchor_based_bin_optimizer();  //how to deal with the anchor?
+        void repulsing_force_based_bin_optimizer();
+        Point bin_center(Bin&);
+        Point bin_center(int,int);
+        std::pair<int,int> bin_idx(Point);
+        int unit_move_x = 1;
+        int unit_move_y = 1;
 
 
         //bank and debank

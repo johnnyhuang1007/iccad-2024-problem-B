@@ -11,7 +11,11 @@ double overlappingArea(Inst* i1,Inst* i2)
     Point r1 = i1->get_root()->coord[1] + Point(1.0,1.0);
     Point l2 = i2->LeftDown();
     Point r2 = i2->get_root()->coord[1] + Point(1.0,1.0);
-    return max({(min(r1.x, r2.x) - max(l1.x, l2.x))*(min(r1.y, r2.y) - max(l1.y, l2.y)),0});
+    if(min(r1.x, r2.x) - max(l1.x, l2.x) <= 0 )
+        return 0;
+    if(min(r1.y, r2.y) - max(l1.y, l2.y) <= 0 )
+        return 0;
+    return (min(r1.x, r2.x) - max(l1.x, l2.x))*(min(r1.y, r2.y) - max(l1.y, l2.y));
 }
 
 double overlappingArea_smoothen(Bin bin, Inst* inst)    //unit area
@@ -51,6 +55,7 @@ double overlappingArea_smoothen(Bin bin, Inst* inst)    //unit area
         py = 0;
     else
         py = b*(dy - double(height(inst))/2.0 - 2.0*bin.height)*(dy - double(height(inst))/2.0 - 2.0*bin.height);
+
     return px*py;
 }
 
@@ -146,10 +151,9 @@ void Plane_E::add_smooth_util(Inst* cur)
     {
         for(int j = max(idxL,0) ; (j <= idxR) && (j <= (Bins[i].size()-1)) ; j++ )
         {
-            
-            smoothen_bin_util -= pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 100.0),2);
+            smoothen_bin_util -= pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 400.0),2);
             Bins[i][j].smoothen_area += const_val*unit_areas_vec[cnt++];
-            smoothen_bin_util += pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 100.0),2);
+            smoothen_bin_util += pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 400.0),2);
         }
     }
 }
@@ -183,9 +187,14 @@ void Plane_E::min_smooth_util(Inst* cur)
     {
         for(int j = max(idxL,0) ; (j <= idxR) && (j <= (Bins[i].size()-1)) ; j++ )
         {
-            smoothen_bin_util -= pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 100.0),2);
+            smoothen_bin_util -= pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 400.0),2);
             Bins[i][j].smoothen_area -= const_val*unit_areas_vec[cnt++];
-            smoothen_bin_util += pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 100.0),2);
+            smoothen_bin_util += pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 400.0),2);
+            if(smoothen_bin_util < 0)
+            {
+                cout<<"ERROR"<<endl;
+                exit(1);
+            }
         }
     }
 }
@@ -248,4 +257,230 @@ void Plane_E::reduce_high_util_pin_weight()
                     p->critical_weight = 0.01;
             }
     }
+}
+
+int abs(Point cur)
+{
+	return abs(cur.x) + abs(cur.y);
+}
+
+//abort
+void Plane_E::repulsing_force_based_bin_optimizer()
+{
+
+    vector<Inst*> FFs_x = FF_list_bank;
+    vector<Inst*> FFs_y = FF_list_bank;
+
+    
+    
+    FFs_x.reserve(FF_list_bank.size() + G_list.size());
+    FFs_y.reserve(FF_list_bank.size() + G_list.size());
+    for(Inst* Gate : G_list)
+    {
+        FFs_x.push_back(Gate);
+        FFs_y.push_back(Gate);
+    }
+    
+    sort(FFs_x.begin() , FFs_x.end(),[](Inst* a, Inst* b){return a->center().x < b->center().x; });
+    sort(FFs_y.begin() , FFs_y.end(),[](Inst* a, Inst* b){return a->center().y < b->center().y; });
+    cout<<"SORT DONE"<<endl;
+    vector<pair<int,int>> FFs_seqence;
+    FFs_seqence.resize(FF_list_bank.size(),pair<int,int>(-1,-1));
+    for(int i = 0 ; i < FFs_x.size() ; i++)
+    {
+        if(FFs_x[i]->is_gate())
+            continue;
+        FFs_seqence[FFs_x[i]->idx].first = i;
+    }
+    for(int i = 0 ; i < FFs_y.size() ; i++)
+    {
+        if(FFs_y[i]->is_gate())
+            continue;
+        FFs_seqence[FFs_y[i]->idx].second = i;
+    }
+    cout<<"PAIRING DONE"<<endl;
+
+
+    int region_y = Bins[0][0].height*2;
+    int region_x = Bins[0][0].width*2;
+
+    
+    double unit_area = FF_lib[0].height * FF_lib[0].width;
+    for(auto& lib : FF_lib)
+    {
+        if(lib.height * lib.width < unit_area)
+            unit_area = lib.height * lib.width;
+    }
+
+    for(auto& lib : G_lib)
+    {
+        if(lib.height * lib.width < unit_area)
+            unit_area = lib.height * lib.width;
+    }
+
+    vector<pair<double,double>> repulseing_forces;
+    vector<pair<double,double>> spring_forces; 
+    repulseing_forces.resize(FF_list_bank.size(), pair<double,double>(0,0));
+    spring_forces.resize(FF_list_bank.size(), pair<double,double>(0,0));
+    for(int i = 0 ; i < FF_list_bank.size() ; i++)
+    {
+        int x_idx = FFs_seqence[FF_list_bank[i]->idx].first;
+        int y_idx = FFs_seqence[FF_list_bank[i]->idx].second;
+        set<Inst*> force_to_cal;
+        for(int j = x_idx+1 ; j < FFs_x.size() && FFs_x[j]->center().x <= FFs_x[x_idx]->center().x + region_x ; j++)
+        {
+            if(FFs_x[j]->center().y > FF_list_bank[i]->center().y + region_y)
+                continue;
+            if(FFs_x[j]->center().y < FF_list_bank[i]->center().y - region_y)
+                continue;
+            force_to_cal.insert(FFs_x[j]);
+        }
+
+        for(int j = x_idx-1 ; j >= 0 && FFs_x[j]->center().x >= FFs_x[x_idx]->center().x - region_x ; j--)
+        {
+            if(FFs_x[j]->center().y > FF_list_bank[i]->center().y + region_y)
+                continue;
+            if(FFs_x[j]->center().y < FF_list_bank[i]->center().y - region_y)
+                continue;
+            force_to_cal.insert(FFs_x[j]);
+        }
+
+        for(int j = y_idx ; j < FFs_y.size() && FFs_y[j]->center().y <= FFs_y[y_idx]->center().y + region_y ; j++)
+        {
+            if(FFs_y[j]->center().x > FF_list_bank[i]->center().x + region_x)
+                continue;
+            if(FFs_y[j]->center().x < FF_list_bank[i]->center().x - region_x)
+                continue;
+            force_to_cal.insert(FFs_y[j]);
+        }
+
+        for(int j = y_idx ; j >= 0 && FFs_y[j]->center().y >= FFs_y[y_idx]->center().y - region_y ; j--)
+        {
+            if(FFs_y[j]->center().x > FF_list_bank[i]->center().x + region_x)
+                continue;
+            if(FFs_y[j]->center().x < FF_list_bank[i]->center().x - region_x)
+                continue;
+            force_to_cal.insert(FFs_y[j]);
+        }
+        double repulse_force_x = 0;
+        double repulse_force_y = 0;
+        //cout<<"SIZE OF NEAREST : "<<force_to_cal.size()<<endl;
+        for(Inst* near_ff : force_to_cal)
+        {
+            if(near_ff->center() == FF_list_bank[i]->center())
+                continue;
+            double dist_part = pow(abs(FF_list_bank[i]->center() - near_ff->center()),3);
+            double charge_part = FF_list_bank[i]->corr_data->height * FF_list_bank[i]->corr_data->width * near_ff->corr_data->height * near_ff->corr_data->width;
+            charge_part = charge_part;
+            repulse_force_x += (charge_part/dist_part) * (near_ff->center() - FF_list_bank[i]->center()).x;
+            repulse_force_y += (charge_part/dist_part) * (near_ff->center() - FF_list_bank[i]->center()).y;
+            /*
+            cout<<FF_list_bank[i]->center()<<endl;
+            cout<<near_ff->center()<<endl;
+            cout<<dist_part<<endl;
+            cout<<charge_part<<endl;
+            cout<<repulse_force_x<<endl;
+            cout<<repulse_force_y<<endl;
+            */
+        }
+        /*
+        double spring_force_x = 0;
+        double spring_force_y = 0;
+        for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+        {
+            FF_list_bank[i]->INs[j]->belong_net->set_weight_center();
+        }
+        for(int j = 0 ; j < FF_list_bank[i]->OUTs.size() ; j++)
+        {
+            FF_list_bank[i]->OUTs[j]->belong_net->set_weight_center();
+        }
+        for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
+        {
+            if(FF_list_bank[i]->INs[j]->belong_net->FROMs.size()==0)
+                continue;
+            spring_force_x += (FF_list_bank[i]->INs[j]->belong_net->center_of_FROMs.x - FF_list_bank[i]->INs[j]->abs_loc().x) * FF_list_bank[i]->INs[j]->belong_net->FROMs_weight;
+            spring_force_y += (FF_list_bank[i]->INs[j]->belong_net->center_of_FROMs.y - FF_list_bank[i]->INs[j]->abs_loc().y) * FF_list_bank[i]->INs[j]->belong_net->FROMs_weight;
+        }
+        for(int j = 0 ; j < FF_list_bank[i]->OUTs.size()  ; j++)
+        {
+            if(FF_list_bank[i]->OUTs[j]->belong_net->TOs.size()==0)
+                continue;
+            spring_force_x += (FF_list_bank[i]->OUTs[j]->belong_net->center_of_TOs.x - FF_list_bank[i]->OUTs[j]->abs_loc().x) * FF_list_bank[i]->OUTs[j]->belong_net->TOs_weight;
+            spring_force_y += (FF_list_bank[i]->OUTs[j]->belong_net->center_of_TOs.y - FF_list_bank[i]->OUTs[j]->abs_loc().y) * FF_list_bank[i]->OUTs[j]->belong_net->TOs_weight;
+        }
+
+        spring_forces[FF_list_bank[i]->idx] = pair<double,double>(spring_force_x,spring_force_y);
+        */
+       
+        repulseing_forces[FF_list_bank[i]->idx] = pair<double,double>(repulse_force_x,repulse_force_y);
+    }
+    
+    /*
+    double Factor_r = 0;
+    double Factor_s = 0;
+    for(auto& f:repulseing_forces)
+        Factor_r += abs(f.first) + abs(f.second);
+    for(auto& f:spring_forces)
+        Factor_s += abs(f.first) + abs(f.second);
+
+    if(Factor_r > Factor_s)
+        for(auto& f:repulseing_forces)
+        {
+            f.first*= (Factor_s/Factor_r);
+            f.second*=(Factor_s/Factor_r);
+        }
+    else
+        for(auto& f:spring_forces)
+        {
+            f.first*= (Factor_r/Factor_s);
+            f.second*=(Factor_r/Factor_s);
+        }
+
+    double max_step = -1;
+    vector<Point> movements;
+    movements.resize(FF_list_bank.size(),Point(0,0));
+    for(int i = 0 ; i < movements.size() ; i++)
+    {
+        movements[i].x = repulseing_forces[i].first + spring_forces[i].first;
+        movements[i].y = repulseing_forces[i].second + spring_forces[i].second;
+
+        if(movements[i].x > max_step)
+            max_step = movements[i].x;
+        if(movements[i].y > max_step)
+            max_step = movements[i].x;
+    }
+    */
+    double max_step = -1;
+    vector<Point> movements;
+    movements.resize(FF_list_bank.size(),Point(0,0));
+    for(int i = 0 ; i < movements.size() ; i++)
+    {
+        movements[i].x = repulseing_forces[i].first *1000;
+        movements[i].y = repulseing_forces[i].second *1000;
+
+        if(movements[i].x > max_step)
+            max_step = movements[i].x;
+        if(movements[i].y > max_step)
+            max_step = movements[i].x;
+    }
+    double max_displace = min(Bins[0][0].height/4,Bins[0][0].width/4);
+    if(max_step > max_displace)
+    {
+        for(int i = 0 ; i < movements.size() ; i++)
+        {
+            movements[i].x = double(movements[i].x)*max_displace/max_step;
+            movements[i].y = double(movements[i].x)*max_displace/max_step;
+        }
+    }
+    
+    for(int i = 0 ; i < FF_list_bank.size() ; i++)
+    {
+        move_and_propagate(FF_list_bank[i],movements[FF_list_bank[i]->idx]);
+    }
+    cout<<"negative_slack   "<<negative_slack<<endl;
+    cout<<"positive_slack   "<<positive_slack<<endl;
+    cout<<"COST "<<cost()<<endl;
+    cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+    cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
+    cout<<endl;
 }

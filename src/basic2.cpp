@@ -1,4 +1,5 @@
 #include "Plane.h"
+#include <set>
 using namespace std;
 
 
@@ -184,10 +185,10 @@ bool Plane::checkAllSpace(Tile* inTile,Tile* start)
 	return !fail;
 }
 
-vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile)
+vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile,Tile* start)
 {
-	list<Tile*> return_list;
-	Tile* curSpace = point_finding(LD(inTile));
+	set<Tile*> return_list;
+	Tile* curSpace = point_finding(LD(inTile),start);
 	
 	int current_height = RU(inTile).y;
 	int current_lower = LD(inTile).y;
@@ -196,7 +197,7 @@ vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile)
 	{
 		//cout<<*curSpace<<endl;
 		if (curSpace->is_space())
-			return_list.push_back(curSpace);
+			return_list.insert(curSpace);
 		if(current_height > RU(curSpace).y)
 			current_height = RU(curSpace).y;
 		
@@ -222,9 +223,89 @@ vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile)
 	vector<Tile*> res{return_list.begin(),return_list.end()};
 	return res;
 }
+
+vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile)
+{
+	set<Tile*> return_list;
+	Tile* curSpace = point_finding(LD(inTile));
+	
+	int current_height = RU(inTile).y;
+	int current_lower = LD(inTile).y;
+	//cout<<"SEARCHING SPACE"<<endl;
+	while (1)
+	{
+		//cout<<*curSpace<<endl;
+		if (curSpace->is_space())
+			return_list.insert(curSpace);
+		if(current_height > RU(curSpace).y)
+			current_height = RU(curSpace).y;
+		
+		Point tmp; 
+		if(RU(curSpace).x < RU(inTile).x)
+		{
+			tmp.x = RU(curSpace).x + 1;
+			tmp.y = current_lower;
+		}
+		else if(RU(curSpace).y < RU(inTile).y)	//this mean this row has done searching
+		{
+			tmp.y = ++current_height;
+			current_lower = current_height;
+			tmp.x = LD(inTile).x;
+		}
+		else
+		{
+			break;
+		}
+		curSpace = point_finding(tmp, curSpace);
+	}
+	//cout<<"END OF SEARCH"<<endl;
+	vector<Tile*> res{return_list.begin(),return_list.end()};
+	return res;
+}
+
+std::vector<Tile*> Plane::getSolidTileInRegion(Tile* inTile,Tile* start)
+{
+	set<Tile*> return_list;
+	Tile* curSpace = point_finding(LD(inTile),start);
+	
+	int current_height = RU(inTile).y;
+	int current_lower = LD(inTile).y;
+	//cout<<"SEARCHING SOLID"<<endl;
+	while (1)
+	{
+		//cout<<*curSpace<<endl;
+		if (!curSpace->is_space())
+			return_list.insert(curSpace);
+		if(current_height > RU(curSpace).y)
+			current_height = RU(curSpace).y;
+		
+		Point tmp;
+		if(RU(curSpace).x < RU(inTile).x)
+		{
+			tmp.x = RU(curSpace).x + 1;
+			tmp.y = current_lower;
+		}
+		else if(RU(curSpace).y < RU(inTile).y)	//this mean this row has done searching
+		{
+			tmp.y = ++current_height;
+			current_lower = current_height;
+			tmp.x = LD(inTile).x;
+		}
+		else
+		{
+			break;
+		}
+		curSpace = point_finding(tmp, curSpace);
+	}
+
+	//cout<<"END OF SEARCH"<<endl;
+	vector<Tile*> res{return_list.begin(),return_list.end()};
+	return res;
+}
+
 std::vector<Tile*> Plane::getSolidTileInRegion(Tile* inTile)
 {
-	list<Tile*> return_list;
+	set<Tile*> return_list;
 	Tile* curSpace = point_finding(LD(inTile));
 	
 	int current_height = RU(inTile).y;
@@ -234,7 +315,7 @@ std::vector<Tile*> Plane::getSolidTileInRegion(Tile* inTile)
 	{
 		//cout<<*curSpace<<endl;
 		if (!curSpace->is_space())
-			return_list.push_back(curSpace);
+			return_list.insert(curSpace);
 		if(current_height > RU(curSpace).y)
 			current_height = RU(curSpace).y;
 		

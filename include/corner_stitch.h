@@ -47,6 +47,7 @@ struct Point
 	bool operator==(Point p);
 };
 
+
 struct Tile
 {
 		Point coord[2];	//left_down right_up

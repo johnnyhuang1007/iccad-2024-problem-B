@@ -64,6 +64,12 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
             move = (move+1)/2;
         }
     }
+    /*
+    if(dir == "UP" || dir == "DOWN")
+        step*=unit_move_y;
+    else
+        step*=unit_move_x;
+    */
     Point newP;
     if(dir == "UP")
     {
@@ -193,7 +199,7 @@ double Plane_E::slack_optimizer(int step)
         Point prev = FF_list_bank[i]->LeftDown();
         int dir = rand()%4;
         unit_move_and_propagate(FF_list_bank[i],DIRS[dir],step);
-        if(alpha*(-negative_slack+prev_neg_slack)/prev_neg_slack + lambda * (prev_smooth_util - smoothen_bin_util)/prev_smooth_util >= 0)
+        if(0.1*(-negative_slack+prev_neg_slack)/prev_neg_slack + 0.99 * (prev_smooth_util - smoothen_bin_util)/prev_smooth_util >= 0)
             continue;
             
         set_and_propagate(FF_list_bank[i],prev);
@@ -223,7 +229,7 @@ void Plane_E::update_slack_pin_weight(double WEIGHT)
             {
                 for(Pin* cur: FF_list_bank[i]->INs[j]->path_seq)
                 {
-                    cur->critical_weight -= FF_list_bank[i]->INs[j]->slack/(positive_slack+0.0000001) * WEIGHT;
+                    cur->critical_weight -= FF_list_bank[i]->INs[j]->slack/(-negative_slack+0.0000001) * WEIGHT;
                 }
             }
         }

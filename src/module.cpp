@@ -128,7 +128,7 @@ Point Soft_Module::estHPWL(Point opt)
 
 Point Module::center()		//����A�p�G�Ogrid base�Acenter�n�A -(0.5,0.5)
 {
-	return Point((RU(bound_Tile[1]).y + LD(bound_Tile[3]).y) / 2 + 0.5, (RU(bound_Tile[2]).x + LD(bound_Tile[0]).x) / 2 + 0.5);
+	return Point((RU(bound_Tile[1]).y + LD(bound_Tile[3]).y +1) / 2, (RU(bound_Tile[2]).x + LD(bound_Tile[0]).x +1) / 2);
 }
  
 Point Soft_Module::pseudoCenter(Tile* toInst)
