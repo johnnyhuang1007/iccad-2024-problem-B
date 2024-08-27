@@ -67,7 +67,7 @@ Point Plane_E::next_on_site_move(Inst* cur,string dir,int step)
     Point newP;
     if(dir == "UP")
     {
-        if(PlacementRows.size()-1 == y_idx)
+        if(PlacementRows.size()-1 <= y_idx)
             return cur->LeftDown();
         if(y_idx+step >= PlacementRows.size())
             y_idx = PlacementRows.size() - step - 1;
@@ -78,11 +78,16 @@ Point Plane_E::next_on_site_move(Inst* cur,string dir,int step)
         if(x_idx == PlacementRows[y_idx+step].count)
             x_idx--;
         newP.x = PlacementRows[y_idx+step].left_down.x + x_idx * PlacementRows[y_idx+step].siteWidth;
+        if(newP.y > Height || newP.y < 0)
+        {
+            cout<<"WRONG CASE OCCUR "<<y_idx<<endl;
+            exit(1);
+        }
     }
     else if(dir == "DOWN")
     {
-        if(0 == y_idx)
-            return cur->LeftDown();
+        if(0 >= y_idx)
+            y_idx = step;
         if(y_idx-step < 0)
             y_idx = step;
         newP.y = PlacementRows[y_idx-step].left_down.y;
@@ -92,9 +97,18 @@ Point Plane_E::next_on_site_move(Inst* cur,string dir,int step)
         if(x_idx == PlacementRows[y_idx-step].count)
             x_idx--;
         newP.x = PlacementRows[y_idx-step].left_down.x + x_idx * PlacementRows[y_idx-step].siteWidth;
+        if(newP.y > Height || newP.y < 0)
+        {
+            cout<<"WRONG CASE OCCUR "<<y_idx<<endl;
+            exit(1);
+        }
     }
     else if(dir == "LEFT")
     {
+        if(y_idx < 0)
+            y_idx = 0;
+        if(y_idx >= PlacementRows.size())
+            y_idx = PlacementRows.size()-1;
         int x_idx = (curp.x - PlacementRows[y_idx].left_down.x ) / PlacementRows[y_idx].siteWidth;
         if(x_idx == 0)
             return cur->LeftDown();
@@ -107,6 +121,10 @@ Point Plane_E::next_on_site_move(Inst* cur,string dir,int step)
     }
     else
     {
+        if(y_idx < 0)
+            y_idx = 0;
+        if(y_idx >= PlacementRows.size())
+            y_idx = PlacementRows.size()-1;
         int x_idx = (curp.x - PlacementRows[y_idx].left_down.x ) / PlacementRows[y_idx].siteWidth;
         if(x_idx >= PlacementRows[y_idx].count)
             return cur->LeftDown();

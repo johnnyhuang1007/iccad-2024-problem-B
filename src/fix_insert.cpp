@@ -23,7 +23,7 @@ int main(int argc, char** argv)
         }
         weight*=0.7;
     }
-
+    chip.bank();
     cout<<"SLACK OPTIMIZATION"<<endl;
     weight = 5000;
     while(weight > 4000)
@@ -46,12 +46,15 @@ int main(int argc, char** argv)
         step*=0.7;
     }
     chip.location_legalization();
-    chip.write_input_format("input.txt");
-    chip.output(argv[2]);
+    
+    //fine tune
     step = 40;
     while(step >= 1)
     {
-        for(int j = 0 ; j < 50 ; j++)
+        int iter = 500;
+        if (step == 1)
+            iter = 5000;
+        for(int j = 0 ; j < iter ; j++)
         {
             chip.robust_slack_optimizer(step);
         }
@@ -60,7 +63,8 @@ int main(int argc, char** argv)
     
     //cout<< end time
     cout<<(clock() - start) / 1000000.0<<endl;
-
+    chip.write_input_format("input.txt");
+    chip.output(argv[2]);
     cout<<"END"<<endl;
     
     return 0;

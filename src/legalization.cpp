@@ -35,17 +35,22 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
         double prev_smooth_util = smoothen_bin_util;
         Point prev = FF_list_bank[i]->LeftDown();
         int dir = rand()%4;
-        
+        if(prev.y < 0 || prev.y > Height)
+        {
+            cout<<prev<<endl;
+            exit(1);
+        }
         Point net_LD = next_on_site_move(FF_list_bank[i],DIRS[dir],step);
         Tile next_Placement = Tile(net_LD,net_LD + Point(height(FF_list_bank[i]->get_root()) - 1,width(FF_list_bank[i]->get_root()) - 1));
         if(!checkAllSpace(&next_Placement,FF_list_bank[i]->get_root()))
         {
             continue;
         }
+        double prev_cost = cost();
         remove_Inst(FF_list_bank[i]);
         unit_move_and_propagate(FF_list_bank[i],DIRS[dir],step);
         insert_inst(FF_list_bank[i]);
-        if(0.1*(-negative_slack+prev_neg_slack)/prev_neg_slack + 0.99 * (prev_smooth_util - smoothen_bin_util)/prev_smooth_util >= 0)
+        if(cost() <= prev_cost)
             continue;
         remove_Inst(FF_list_bank[i]);
         set_and_propagate(FF_list_bank[i],prev);

@@ -865,7 +865,7 @@ void Plane_E::output(char* file)
     {
         fout<<"Inst "<<FF_list_bank[i]->getName()<<" ";
         T_Idx p = FF_list_bank[i]->corr_Lib;
-        fout<<FF_lib[p.second].name<<" "<<setprecision(0)<<LD(FF_list_bank[i])<<endl;
+        fout<<FF_lib[p.second].name<<" "<<setprecision(0)<<FF_list_bank[i]->LeftDown()<<endl;
 
     }
 
