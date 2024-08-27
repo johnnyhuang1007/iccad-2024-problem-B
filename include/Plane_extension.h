@@ -59,7 +59,7 @@ class Plane_E : public Plane
         long FF_total_area = 0;
         double FF_total_power = 0;
         long long int name_cnter = 0;
-        
+        std::vector<std::string> DIRS{"UP","RIGHT","DOWN","LEFT"};
         
     public:
         
@@ -131,6 +131,8 @@ class Plane_E : public Plane
         void slack_trace_back();
         void slack_propagation();
         void slack_propagation(Inst*);
+        Point next_on_site_move(Inst*,std::string,int);
+        void robust_slack_optimizer(int);
 
         //bin computation
         void add_util(Inst*);

@@ -15,6 +15,52 @@ bool slack_compare(Inst* a, Inst* b)
     return slack1 < slack2;
 }
 
+
+void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the next result is legal, and the solution is better
+{
+    //cout<<"INITIAL SLACK: "<<slack<<endl;
+    bool check1 = 0,check2 = 0;
+    double prev_n_slack = negative_slack;
+    double prev_p_slack = positive_slack;
+    double T_val = (prev_p_slack - prev_n_slack)*(prev_p_slack - prev_n_slack);
+    vector<Point> movements;
+    movements.reserve(FF_list_bank.size());
+    int check = rand()%FF_list_bank.size();
+    vector<Inst*> start_anchors = G_list;
+
+    for(int i = 0 ; i < FF_list_bank.size() ; i++)
+    { 
+        double prev_neg_slack = negative_slack;
+        double prev_pos_slack = positive_slack;
+        double prev_smooth_util = smoothen_bin_util;
+        Point prev = FF_list_bank[i]->LeftDown();
+        int dir = rand()%4;
+        
+        Point net_LD = next_on_site_move(FF_list_bank[i],DIRS[dir],step);
+        Tile next_Placement = Tile(net_LD,net_LD + Point(height(FF_list_bank[i]->get_root()) - 1,width(FF_list_bank[i]->get_root()) - 1));
+        if(!checkAllSpace(&next_Placement,FF_list_bank[i]->get_root()))
+        {
+            continue;
+        }
+        remove_Inst(FF_list_bank[i]);
+        unit_move_and_propagate(FF_list_bank[i],DIRS[dir],step);
+        insert_inst(FF_list_bank[i]);
+        if(0.1*(-negative_slack+prev_neg_slack)/prev_neg_slack + 0.99 * (prev_smooth_util - smoothen_bin_util)/prev_smooth_util >= 0)
+            continue;
+        remove_Inst(FF_list_bank[i]);
+        set_and_propagate(FF_list_bank[i],prev);
+        insert_inst(FF_list_bank[i]);
+    }
+
+    cout<<"negative_slack   "<<negative_slack<<endl;
+    cout<<"positive_slack   "<<positive_slack<<endl;
+    cout<<"COST "<<cost()<<endl;
+    cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+    cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
+    cout<<endl;
+    return ;//negative_slack;
+}
+
 void Plane_E::location_legalization(vector<Inst*> to_fix)
 {
     
@@ -88,7 +134,7 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
             //cout<<pseudo_tile<<endl;
             start = point_finding(LD(&pseudo_tile),start);
             vector<Tile*> region_spaces = getSpaceTileInRegion(&pseudo_tile,start);
-            cout<<pseudo_tile<<endl;
+            //cout<<pseudo_tile<<endl;
             //cout<<"REGION SPACE"<<endl;
             for(auto& space : region_spaces)
             {

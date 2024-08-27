@@ -41,9 +41,8 @@ void Plane_E::set_and_propagate(Inst* cur, Point loc)
     positive_slack += d_slack[1];
 }
 
-void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DOWN" "LEFT" "RIGHT"
+Point Plane_E::next_on_site_move(Inst* cur,string dir,int step)
 {
-
     int y_idx  = 0;
     Point curp = cur->LeftDown();
     if(curp.y >= PlacementRows.back().left_down.y)
@@ -64,17 +63,12 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
             move = (move+1)/2;
         }
     }
-    /*
-    if(dir == "UP" || dir == "DOWN")
-        step*=unit_move_y;
-    else
-        step*=unit_move_x;
-    */
+
     Point newP;
     if(dir == "UP")
     {
         if(PlacementRows.size()-1 == y_idx)
-            return;
+            return cur->LeftDown();
         if(y_idx+step >= PlacementRows.size())
             y_idx = PlacementRows.size() - step - 1;
         newP.y = PlacementRows[y_idx+step].left_down.y;
@@ -88,7 +82,7 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
     else if(dir == "DOWN")
     {
         if(0 == y_idx)
-            return;
+            return cur->LeftDown();
         if(y_idx-step < 0)
             y_idx = step;
         newP.y = PlacementRows[y_idx-step].left_down.y;
@@ -103,7 +97,7 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
     {
         int x_idx = (curp.x - PlacementRows[y_idx].left_down.x ) / PlacementRows[y_idx].siteWidth;
         if(x_idx == 0)
-            return;
+            return cur->LeftDown();
         if(x_idx - step <= 0)
             x_idx = 0;
         else
@@ -114,8 +108,8 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
     else
     {
         int x_idx = (curp.x - PlacementRows[y_idx].left_down.x ) / PlacementRows[y_idx].siteWidth;
-        if(x_idx == PlacementRows[y_idx].count)
-            return;
+        if(x_idx >= PlacementRows[y_idx].count)
+            return cur->LeftDown();
         
         if(x_idx + step >= PlacementRows[y_idx].count)
             x_idx = PlacementRows[y_idx].count - 1;
@@ -124,7 +118,13 @@ void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DO
         newP.y = PlacementRows[y_idx].left_down.y;
         newP.x = PlacementRows[y_idx].left_down.x + PlacementRows[y_idx].siteWidth * x_idx;
     }
+    return newP;
+}
 
+void Plane_E::unit_move_and_propagate(Inst* cur,string dir,int step)  //"UP" "DOWN" "LEFT" "RIGHT"
+{
+
+    Point newP = next_on_site_move(cur,dir,step);
     min_util(cur);
     min_smooth_util(cur);
     cur->set_new_loc(newP);
@@ -178,7 +178,7 @@ double Plane_E::set_on_site()
 }
 
 double collect_error = 0;
-vector<string> DIRS{"UP","RIGHT","DOWN","LEFT"};
+
 double Plane_E::slack_optimizer(int step)
 {
     //cout<<"INITIAL SLACK: "<<slack<<endl;
