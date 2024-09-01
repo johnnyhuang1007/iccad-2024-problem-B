@@ -485,7 +485,7 @@ Tile Plane::findUsableRectFast(Tile* included, Tile* objective)	//include is whi
 {
 
 	if(width(included) < width(objective))
-		return Tile(Point(-999999999,-999999999),Point(-999999999,-999999999));
+		return Tile(Point(__INT_MAX__,__INT_MAX__),Point(__INT_MAX__,__INT_MAX__));
 
 	Tile all_and_up = Tile(LD(included),Point(LD(included).y + height(objective) -1 ,RU(included).x));
 	Tile all_and_lower = Tile(Point(RU(included).y - height(objective) +1,LD(included).x),RU(included));
@@ -600,9 +600,11 @@ Tile Plane::findUsableRect(Tile* included, Tile* objective)
 	}
 	if(accepted_list.size() == 0)
 	{
-		return Tile(Point(-999999999,-999999999),Point(-999999999,-999999999));
+		return Tile(Point(__INT_MAX__,__INT_MAX__),Point(__INT_MAX__,__INT_MAX__));
 	}
-	double dist = 100000000000000000;
+	//max double value
+
+	double dist = __DBL_MAX__;
 	Tile to_return;
 	for(Tile& T : accepted_list)
 	{

@@ -379,7 +379,7 @@ void Plane_E::SET_FF_GATE_LIB(ifstream& fin)
     {
         bit_ff_cnts[FF_lib[i].bits]++;
     }
-    FF_lib_bits.resize(max_cnt+1);
+    FF_lib_bits.resize(max_cnt+1,vector<Inst_data*>());
     for(int i = 0 ; i < max_cnt ; i++)
     {
         FF_lib_bits[i].reserve(bit_ff_cnts[i]);
@@ -402,13 +402,22 @@ void Plane_E::SET_FF_GATE_LIB(ifstream& fin)
             }
         }
     }
+
+    min_cost_per_bit = FF_lib_bits[1][0];
+    for(int i = 0 ; i < FF_lib.size() ; i++)
+    {
+        double cost_cur = (gamma * min_cost_per_bit->height*min_cost_per_bit->width + beta * min_cost_per_bit->power)/double(min_cost_per_bit->bits);
+        double cost_next = (gamma * FF_lib[i].height*FF_lib[i].width + beta * FF_lib[i].power)/double(FF_lib[i].bits);
+        if(cost_next < cost_cur)
+            min_cost_per_bit = &FF_lib[i];
+    }
+
     for(int i = Word.size()-1 ; i >= 0 ; i--)
     {
         fin.putback(Word[i]);
     }
 
 }
-
 
 
 bool cost_comp(double gamma,double beta,Inst_data* a, Inst_data* b)
@@ -909,7 +918,7 @@ bool Plane_E::remove_Inst(Inst* cur)    //return 1 if removed successful
 {
     if(!cur->inserted)  //you can only modify inst data if not inserted
     {
-        return 1;
+        return 0;
     }
     Tile* newT = new Tile(cur->get_root(),0); //don't copy stitches
     remove(cur->get_root());
@@ -1088,6 +1097,13 @@ void Plane_E::IOC_distinguish()
 
 }
 
+void Plane_E::remove_FFs()
+{
+    for(auto& cur:FF_list_bank)
+    {
+        remove_Inst(cur);
+    }
+}
 
 void Plane_E::insert_FFs()
 {

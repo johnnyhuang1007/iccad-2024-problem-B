@@ -14,7 +14,7 @@ class PlacerInOut
 		std::vector<Wire*> wires;
 		int chipX = 0;
 		int chipY = 0;
-		int minHeight = 9999999;
+		int minHeight = __INT_MAX__;
 	public:
 		void readInsertedTile(std::vector<Tile*>);
 		void readWire(std::vector<Wire*>);

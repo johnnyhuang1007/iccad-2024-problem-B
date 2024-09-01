@@ -13,6 +13,11 @@ void Plane_E::debank()
     }
 }
 
+void Plane_E::min_displacement_bank()
+{
+
+}
+
 void Plane_E::bank()
 {
 
@@ -70,14 +75,14 @@ double Plane_E::effective_dist(Inst* master,Inst* slave)
     return displace_timing;
 }
 
+vector<double> total_displace;
+vector<bool> is_banked;
+
 void Plane_E::same_domain_banking(net* cur_domain)
 {
-    
+    total_displace.resize(FF_list_bank.size(),0);
+    is_banked.resize(FF_list_bank.size(),0);
     vector<Inst*> FFs = get_same_domain_FFs(cur_domain);
-    for(auto&FF:FFs)
-    {
-        cout<<FF->get_name()<<endl;
-    }
     vector<Inst*> FFs_x = FFs;
     sort(FFs_x.begin(),FFs_x.end(),x_comp);
     vector<Inst*> FFs_y = FFs;
@@ -86,7 +91,7 @@ void Plane_E::same_domain_banking(net* cur_domain)
     for(Inst* FF:FFs_x)
         k_mean_list.push_back(make_pair(FF,set<pair<double,Inst*>>{}));
     
-    cout<<FF_lib_bits.size()<<endl;
+    cout<<"FF_lib_bits "<<FF_lib_bits.size()<<endl;
     for(int x_idx = 0 ; x_idx < k_mean_list.size() ; x_idx++)
     {
         int y_idx = -1;
@@ -125,16 +130,104 @@ void Plane_E::same_domain_banking(net* cur_domain)
         cout<<"END"<<endl;
         */
     }
-    cout<<"BANKING"<<endl;
+    int bank_bit = min_cost_per_bit->bits;
+    // get the total displacement of the bank_bits FFs
     for(int i = 0 ; i < k_mean_list.size() ; i++)
     {
+        int cnt = k_mean_list[i].first->INs.size();
+        for(auto& neighbor:k_mean_list[i].second)
+        {
+            if(cnt + neighbor.second->INs.size() >= bank_bit)
+                break;
+            total_displace[k_mean_list[i].first->idx] += neighbor.first;
+            cnt += neighbor.second->INs.size();
+        }
+    }
+    sort(k_mean_list.begin(),k_mean_list.end(),[](pair<Inst*,set<pair<double,Inst*>>>& a,pair<Inst*,set<pair<double,Inst*>>>& b){return total_displace[a.first->idx] < total_displace[b.first->idx];});
+    vector<Inst*> still_exist(k_mean_list.size(),NULL);
+    for(int i = 0 ; i < still_exist.size() ; i++)
+        still_exist[i] = k_mean_list[i].first;
+    vector<vector<Inst*>> to_banks(k_mean_list.size(),vector<Inst*>{});
+
+    for(int i = 0 ; i < k_mean_list.size() ; i++)
+    {
+        auto itr = find(still_exist.begin(),still_exist.end(),k_mean_list[i].first);
+        if(itr == still_exist.end())
+            continue;
+        still_exist.erase(itr);
+
+        to_banks[i].push_back(k_mean_list[i].first);
+        int cnt= k_mean_list[i].first->INs.size();
+        for(auto& neighbor:k_mean_list[i].second)
+        {
+            if(cnt + neighbor.second->INs.size() > bank_bit)
+                break;
+            itr = find(still_exist.begin(),still_exist.end(),neighbor.second);
+            if(itr == still_exist.end())
+                continue;
+            cnt += neighbor.second->INs.size();
+            to_banks[i].push_back(neighbor.second);
+            still_exist.erase(itr);
+        }
+    }
+    cout<<"BANKING"<<endl;
+    for(int i = 0 ; i < to_banks.size() ; i++)
+    {
+        cout<<"START"<<endl;
+        if(to_banks[i].size() == 0)
+            continue;
+        int bits = 0;
+        for(Inst* to_bank:to_banks[i])
+            bits += to_bank->INs.size();
+        if(bits >= FF_lib_bits.size())
+            continue;
+        cout<<"CURRENT BITS: "<<bits<<endl;
+
+        if(FF_lib_bits[bits].size() == 0)
+        {
+            cout<<"SPECIAL CASE"<<endl;
+            bool success = 0;
+            //inverse list iteration
+            for(int j = to_banks[i].size()-1 ; j >= 0 ; j--)
+            {
+                if(FF_lib_bits[bits - to_banks[i][j]->INs.size()].size() > 0)
+                {
+                    bits = bits - to_banks[i][j]->INs.size();
+                    to_banks[i][j] = to_banks[i].back();
+                    to_banks[i].pop_back();
+                    cout<<"SUCCESS"<<   endl;
+                    success = 1;
+                    break;
+                }
+            }
+            if(!success)
+                continue;
+        }
+        cout<<"BANKING"<<endl;
+        bank(to_banks[i],FF_lib_bits[bits][0]);
+        cout<<"END"<<endl;
+    }
+    
+    
+    /*
+    for(int i = 0 ; i < k_mean_list.size() ; i++)
+    {
+        int cur_bit = k_mean_list[i].first->INs.size();
         bool found = 0;
         Inst* FF = k_mean_list[i].first;
         set<pair<double,Inst*>> neighbor_set = k_mean_list[i].second;
         Inst* to_bank = neighbor_set.begin()->second;
-        while(!(found || neighbor_set.empty()))
+        vector<Inst*> to_bank_list;
+        to_bank_list.push_back(FF);
+        while(!(cur_bit >= bank_bit || neighbor_set.empty()))
         {
             to_bank = neighbor_set.begin()->second;
+            to_bank_list.push_back(to_bank);
+            if(to_bank->INs.size() + cur_bit > bank_bit)
+            {
+                neighbor_set.erase(neighbor_set.begin());
+                continue;
+            }
             if(neighbor_set.begin()->first >= 50)
                 break;
             for(int j = 0 ; j < k_mean_list.size() ; j++)
@@ -142,20 +235,27 @@ void Plane_E::same_domain_banking(net* cur_domain)
                 if(k_mean_list[j].first == to_bank)
                 {
                     k_mean_list[j] = k_mean_list.back();
+                    for(auto &neighbor:k_mean_list[j].second)
+                    {
+                        if( neighbor.second == FF)
+                            continue;
+                        neighbor_set.insert(neighbor);
+                    }
                     k_mean_list.pop_back();
-                    found = 1;
+                    cur_bit += to_bank->INs.size();
                     break;
                 }
             }
             neighbor_set.erase(neighbor_set.begin());
         }
-        if(found)
-            bank(vector<Inst*>{FF,to_bank});
+        if(cur_bit > FF->INs.size())
+            bank(to_bank_list);
         k_mean_list[i] = k_mean_list.back();
         k_mean_list.pop_back();
         i--;
     }
-
+    */
+   cout<<"END"<<endl;
 }
 
 vector<Inst*> Plane_E::get_same_domain_FFs(net* cur)
@@ -255,6 +355,7 @@ Inst* Plane_E::bank(std::vector<Inst*> to_bank, Inst_data* objective)
 
     Inst* N = to_bank[0];
     Tile* root = N->get_root();
+    
     N->corr_data = &FF_lib[idx];
     N->corr_Lib = p;
     root->coord[1] = N->LeftDown() + Point(FF_lib[idx].height,FF_lib[idx].width) - Point(1,1);
@@ -447,3 +548,7 @@ std::vector<Inst*> Plane_E::debank(Inst* to_debank, std::vector<Inst_data*> obje
     return new_Insts;
 }
 
+void Plane_E::legality_look_ahead_banking()
+{
+    
+}

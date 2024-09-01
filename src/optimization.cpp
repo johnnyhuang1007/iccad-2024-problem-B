@@ -197,30 +197,46 @@ double Plane_E::set_on_site()
 
 double collect_error = 0;
 
-double Plane_E::slack_optimizer(int step)
+double Plane_E::slack_optimizer(int step, Inst* to_modify)
 {
+
+    double prev_neg_slack = negative_slack;
+    double prev_pos_slack = positive_slack;
+    double prev_smooth_util = smoothen_bin_util;
+    Point prev = to_modify->LeftDown();
+    int dir = rand()%4;
+    unit_move_and_propagate(to_modify,DIRS[dir],step);
+    if(0.1*(-negative_slack+prev_neg_slack)/prev_neg_slack + 0.99 * (prev_smooth_util - smoothen_bin_util)/prev_smooth_util < 0)
+       set_and_propagate(to_modify,prev);
+
+
+    cout<<"negative_slack   "<<negative_slack<<endl;
+    cout<<"positive_slack   "<<positive_slack<<endl;
+    cout<<"COST "<<cost()<<endl;
+    cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+    cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
+    cout<<endl;
+    return negative_slack;
+}
+
+double Plane_E::slack_optimizer(int step,std::vector<Inst*> to_modified)
+{
+    //randomize to_modified
+    random_shuffle(to_modified.begin(),to_modified.end());
     //cout<<"INITIAL SLACK: "<<slack<<endl;
-    bool check1 = 0,check2 = 0;
-    double prev_n_slack = negative_slack;
-    double prev_p_slack = positive_slack;
-    double T_val = (prev_p_slack - prev_n_slack)*(prev_p_slack - prev_n_slack);
-    vector<Point> movements;
-    movements.reserve(FF_list_bank.size());
-    int check = rand()%FF_list_bank.size();
-    
-    
-    for(int i = 0 ; i < FF_list_bank.size() ; i++)
+
+    for(int i = 0 ; i < to_modified.size() ; i++)
     { 
         double prev_neg_slack = negative_slack;
         double prev_pos_slack = positive_slack;
         double prev_smooth_util = smoothen_bin_util;
-        Point prev = FF_list_bank[i]->LeftDown();
+        Point prev = to_modified[i]->LeftDown();
         int dir = rand()%4;
-        unit_move_and_propagate(FF_list_bank[i],DIRS[dir],step);
+        unit_move_and_propagate(to_modified[i],DIRS[dir],step);
         if(0.1*(-negative_slack+prev_neg_slack)/prev_neg_slack + 0.99 * (prev_smooth_util - smoothen_bin_util)/prev_smooth_util >= 0)
             continue;
             
-        set_and_propagate(FF_list_bank[i],prev);
+        set_and_propagate(to_modified[i],prev);
     }
 
     cout<<"negative_slack   "<<negative_slack<<endl;
@@ -230,6 +246,11 @@ double Plane_E::slack_optimizer(int step)
     cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
     cout<<endl;
     return negative_slack;
+}
+
+double Plane_E::slack_optimizer(int step)
+{
+    return slack_optimizer(step,FF_list_bank);
 }
 
 bool isnan(Point p)

@@ -26,7 +26,6 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
     vector<Point> movements;
     movements.reserve(FF_list_bank.size());
     int check = rand()%FF_list_bank.size();
-    vector<Inst*> start_anchors = G_list;
 
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     { 
@@ -42,7 +41,14 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
         }
         Point net_LD = next_on_site_move(FF_list_bank[i],DIRS[dir],step);
         Tile next_Placement = Tile(net_LD,net_LD + Point(height(FF_list_bank[i]->get_root()) - 1,width(FF_list_bank[i]->get_root()) - 1));
-        if(!checkAllSpace(&next_Placement,FF_list_bank[i]->get_root()))
+        Tile* start;
+        if(!FF_list_bank[i]->inserted)
+        {
+            start = G_list[rand()%G_list.size()]->get_root();
+        }
+        else
+            start = FF_list_bank[i]->get_root();
+        if(!checkAllSpace(&next_Placement,start))
         {
             continue;
         }
@@ -71,18 +77,40 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
     
     sort(to_fix.begin(),to_fix.end(),slack_compare);
     int cnt = 0;
-    for(auto& FF: to_fix)
+    Tile max_region = Tile(to_fix[0]->get_root());
+    for(int i = 0 ; i < to_fix.size() ; i++)
     {
+        Inst* FF = to_fix[i];
         cout<<cnt++<<endl;
         cout<<negative_slack<<endl;
         //cout<<FF->idx<<endl;
         //cout<<FF->get_name()<<endl; 
-        if(insert_inst(FF))
+        if(insert_inst(FF) || FF->inserted)
         {
             continue;
         }
         //cout<<"FAIL"<<endl;
         Tile pseudo_tile = Tile(FF->get_root());
+        if(width(&max_region) > width(&pseudo_tile))
+        {
+            int width_diff = (width(&max_region) - width(&pseudo_tile))/2;
+            LD(&pseudo_tile).x -= width_diff;
+            RU(&pseudo_tile).x += width_diff;
+            if(RU(&pseudo_tile).x > Width -1)
+                RU(&pseudo_tile).x = Width -1;
+            if(LD(&pseudo_tile).x < 1)
+                LD(&pseudo_tile).x = 1;
+        }
+        if(height(&max_region) > height(&pseudo_tile))
+        {
+            int height_diff = (height(&max_region) - height(&pseudo_tile))/2;
+            LD(&pseudo_tile).y -= height_diff;
+            RU(&pseudo_tile).y += height_diff;
+            if(RU(&pseudo_tile).y > Height -1)
+                RU(&pseudo_tile).y = Height -1;
+            if(LD(&pseudo_tile).y < 1)
+                LD(&pseudo_tile).y = 1;
+        }
         //cout<<"REQURIED SIZE"   <<endl;
         //cout<<pseudo_tile<<endl;
 
@@ -94,12 +122,12 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
         while(!inserted)
         {
             
-            //cout<<"SEARECHING REGION"<<endl;
-            //cout<<pseudo_tile<<endl;
+            cout<<"SEARECHING REGION"<<endl;
+            cout<<pseudo_tile<<endl;
             start = point_finding(LD(&pseudo_tile),start);
             vector<Tile*> solid_vec = getSolidTileInRegion(&pseudo_tile,start);
             //find min size to include all the solid
-            //cout<<"REGION SOLID"<<endl;
+            cout<<"REGION SOLID"<<endl;
             for(auto& solid : solid_vec)
             {
                 //cout<<*solid<<endl;
@@ -134,13 +162,13 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
                 LD(&pseudo_tile).y--;
             else
                 LD(&pseudo_tile).y = 1;
-            //cout<<"SEARECHING REGION"<<endl;
+            cout<<"SEARECHING REGION"<<endl;
             
-            //cout<<pseudo_tile<<endl;
+            cout<<pseudo_tile<<endl;
             start = point_finding(LD(&pseudo_tile),start);
             vector<Tile*> region_spaces = getSpaceTileInRegion(&pseudo_tile,start);
-            //cout<<pseudo_tile<<endl;
-            //cout<<"REGION SPACE"<<endl;
+            cout<<pseudo_tile<<endl;
+            cout<<"REGION SPACE"<<endl;
             for(auto& space : region_spaces)
             {
                 if(width(space) > width(&pseudo_tile) * 2)
@@ -202,7 +230,7 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
                 Tile to_push = findUsableRect(space, FF->get_root());
                 //cout<<"RESULT"<<endl;
                 //cout<<to_push<<endl;
-                if(RU(&to_push).x != -999999999)
+                if(RU(&to_push).x != __INT_MAX__)
                 {
                     inserted = 1;
                     possible_tiles.push_back(to_push);
@@ -210,7 +238,7 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
             }
         }
         inserted = 0;
-        double dist = 999999999;
+        double dist = __DBL_MAX__;
         Tile* best_tile = NULL;
         //sort by distance between FF and tile
         sort(possible_tiles.begin(),possible_tiles.end(),\
@@ -223,27 +251,38 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
         Point org = FF->LeftDown();
         for(Tile pos : possible_tiles)
         {
-            //cout<<"TRYING: "<<pos<<endl;
+            cout<<"TRYING: "<<pos<<endl;
+            cout<<width(FF->get_root())<<endl;
+            cout<<height(FF->get_root())<<endl;
             Point to_insert_pos = min_displacement_loc(FF,&pos);//condition and region  //use packing method and need to be legal
-            //cout<<"to_insert_pos "<<to_insert_pos<<endl;
+            cout<<"to_insert_pos "<<to_insert_pos<<endl;
             if(to_insert_pos.x > Width)
                 continue;
-            //cout<<NewP<<endl;
-            //cout<<"INSERTION"  <<endl;
+            cout<<"INSERTION"  <<endl;
             set_and_propagate(FF,to_insert_pos);
-            //cout<<"INSERTION";
+            cout<<"INSERTION";
             if(insert_inst(FF))
             {
                 success = 1;
-                //cout<<" SUCCESS"<<endl;
+                cout<<" SUCCESS"<<endl;
                 break;
             }
-            //cout<<" FAIL"<<endl;
+            cout<<" FAIL"<<endl;
         }
         if(!success)
         {
             set_and_propagate(FF,org);
             goto find;
+        }
+        if(width(&pseudo_tile)/1000 > width(&max_region))
+        {
+            LD(&max_region).x = 0;
+            RU(&max_region).x = (RU(&pseudo_tile).x - LD(&pseudo_tile).x)/1000;
+        }
+        if(height(&pseudo_tile)/1000 > height(&max_region))
+        {
+            LD(&max_region).y = 0;
+            RU(&max_region).y = (RU(&pseudo_tile).y - LD(&pseudo_tile).y)/1000;
         }
     }
 
@@ -262,21 +301,21 @@ Point Plane_E::min_displacement_loc(Inst* condition, Tile* region)
     Point region_RU = region->coord[1];
     int LD_yidx = placement_row_idx(region_LD);
     int RU_yidx = placement_row_idx(region_RU - Point(height(condition) - 1,0));
-    while(PlacementRows[LD_yidx].left_down.y < region_LD.y)
+    while(PlacementRows[LD_yidx].left_down.y < region_LD.y && LD_yidx < PlacementRows.size()-1)
     {
         LD_yidx++;
-    } 
-    if(PlacementRows[RU_yidx+1].left_down.y <= region_RU.y - height(condition) + 1)
+    }
+    if(PlacementRows[RU_yidx+1].left_down.y <= region_RU.y - height(condition) + 1 && RU_yidx < PlacementRows.size()-1)
         RU_yidx++;
-    while(PlacementRows[RU_yidx].left_down.y > region_RU.y - height(condition) + 1)
+    while(PlacementRows[RU_yidx].left_down.y > region_RU.y - height(condition) + 1 && RU_yidx > 0)
     {
         RU_yidx--;
     } 
 
-    
-    //cout<<"LD_yidx "<<PlacementRows[LD_yidx].left_down.y<<endl;
-    //cout<<"RU_yidx "<<PlacementRows[RU_yidx].left_down.y<<endl;
-    int min_dist = 100*(Height + Width);
+
+    cout<<"LD_yidx "<<PlacementRows[LD_yidx].left_down.y<<endl;
+    cout<<"RU_yidx "<<PlacementRows[RU_yidx].left_down.y<<endl;
+    int min_dist = __INT_MAX__;
     Point insert(Height,Width);
 
     for(int i = LD_yidx ; i <= RU_yidx ; i++)
@@ -295,12 +334,14 @@ Point Plane_E::min_displacement_loc(Inst* condition, Tile* region)
         if(RU_xidx >= PlacementRows[i].count)
             RU_xidx = PlacementRows[i].count -1;
         
-        //cout<<"cur I "<<i<<endl;
-        //cout<<"LD_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx<<endl;
-        //cout<<"RU_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * RU_xidx<<endl;
+        cout<<"cur I "<<i<<endl;
+        cout<<"LD_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx<<endl;
+        cout<<"RU_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * RU_xidx<<endl;
         if(LD_xidx > RU_xidx)
             continue;
-        if(PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx + width(condition) - 1 > region_RU.x)
+        cout<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx + width(condition) -1<<endl;
+        cout<<region_RU.x<<endl;
+        if(PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx + width(condition) -1 > region_RU.x)
             continue;
         Point vec = Point(PlacementRows[i].left_down.y,PlacementRows[i].left_down.x + PlacementRows[i].siteWidth *LD_xidx)  - LD(condition);
         int cur_dist = abs(vec.x) + abs(vec.y);
@@ -368,7 +409,7 @@ void Plane_E::loc_sequence_based_legalization()
         set_and_propagate(FFs_y.back(),Point(max_allowed_y,FFs_y.back()->LeftDown().x));
     }
 
-    int min_total_slack = 100000000000;
+    int min_total_slack = 100000000;
     int center_x;
     int center_y;
     for(int i = 0 ; i < FFs_x.size() ; i++)
@@ -384,7 +425,7 @@ void Plane_E::loc_sequence_based_legalization()
             center_x = i;
         }
     }
-    min_total_slack = 100000000000;
+    min_total_slack = 100000000;
     for(int i = 0 ; i < FFs_y.size() ; i++)
     {
         int total_slack = 0;

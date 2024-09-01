@@ -66,6 +66,7 @@ class Plane_E : public Plane
         std::vector<Inst_data> FF_lib;
         std::unordered_map<std::string,Inst_data*> FF_lib_u;
         std::vector<std::vector<Inst_data*>> FF_lib_bits;
+        Inst_data* min_cost_per_bit;
         std::vector<Inst_data> G_lib;
         std::vector<Inst*> G_list;
         std::unordered_map<std::string,Inst*> G_list_u;
@@ -134,6 +135,8 @@ class Plane_E : public Plane
         Point next_on_site_move(Inst*,std::string,int);
         void robust_slack_optimizer(int);
 
+        void pin_swapping(){};
+
         //bin computation
         void add_util(Inst*);
         void min_util(Inst*);
@@ -158,6 +161,8 @@ class Plane_E : public Plane
         std::vector<Inst*> debank(Inst*);
         void debank();
         void bank();
+        void legality_look_ahead_banking();
+        void min_displacement_bank();
         double effective_dist(Inst*,Inst*);
         
         std::vector<Inst*> get_same_domain_FFs(Inst*);
@@ -168,12 +173,15 @@ class Plane_E : public Plane
         //placer
         double set_on_site();
         void insert_FFs();
+        void remove_FFs();
         
         //optimizer
         void sequence_finder();
         void sequence_finder(Inst*);
         double HPWL_optimizer();
         double slack_optimizer(int);
+        double slack_optimizer(int,Inst*);
+        double slack_optimizer(int,std::vector<Inst*>);
         void update_slack_pin_weight(double);
         void move_and_propagate(Inst*,Point);
         void set_and_propagate(Inst*, Point);
