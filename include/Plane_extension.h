@@ -32,10 +32,10 @@ class Plane_E : public Plane
 {
     private:
         
-        double alpha;
-        double beta;
-        double gamma;
-        double lambda;
+        double alpha;   //TNS
+        double beta;    //power
+        double gamma;   //area
+        double lambda;  //utilization
         
         
         void SET_FF_GATE_INFO(std::ifstream&);
@@ -162,7 +162,9 @@ class Plane_E : public Plane
         void debank();
         void bank();
         void legality_look_ahead_banking();
+        void legality_look_ahead_banking(net*);
         void min_displacement_bank();
+        std::vector<std::pair<Inst*,std::set<std::pair<double,Inst*>>>> min_total_displacement_k_mean(net*);
         double effective_dist(Inst*,Inst*);
         
         std::vector<Inst*> get_same_domain_FFs(Inst*);
@@ -170,10 +172,16 @@ class Plane_E : public Plane
         void same_domain_banking(net*);
         void same_domain_debanking(net*);
 
+        std::list<Tile> region_insertable(std::vector<Tile*>);
+        std::list<Tile> region_insertable(Tile*,int,int);
+
         //placer
         double set_on_site();
+        std::vector<Tile*> remove_not_on_site(std::vector<Tile*>);
         void insert_FFs();
         void remove_FFs();
+
+
         
         //optimizer
         void sequence_finder();
