@@ -354,7 +354,6 @@ bool Plane::checkAllSpace(Tile* inTile)
 	bool fail = 0;
 	while (1)
 	{
-		
 		if (!curSpace->is_space())
 			return 0;
 		if (RU(curSpace).x < RU(inTile).x)

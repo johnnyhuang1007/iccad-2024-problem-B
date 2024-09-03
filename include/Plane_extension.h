@@ -174,6 +174,7 @@ class Plane_E : public Plane
 
         std::list<Tile> region_insertable(std::vector<Tile*>);
         std::list<Tile> region_insertable(Tile*,int,int);
+        std::list<Tile> region_insertable(std::vector<Tile*> space_list,int req_width,int req_height);
 
         //placer
         double set_on_site();
