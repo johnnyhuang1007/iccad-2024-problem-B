@@ -655,13 +655,18 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
         space_list = remove_not_on_site(space_list);
         list<Tile> potential_insertable = region_insertable(space_list); 
         
+        //from all the potential insertable find the best loc
         double best_delta = __DBL_MAX__;
+        vector<Inst*> best_closest;
+        Tile best_to_insert;
+        Inst_data* to_type;
         for(auto& tile:potential_insertable)
         {
-            //TO-DO it should move out;
-            //cal delta performance of certain bits
+            //TO-DO it should move out (not sure);
+            //cal delta performance of certain bits 
             double delta_bit = __DBL_MAX__;
-            vector<Inst*> best_closest;
+            vector<Inst*> closest_tile;
+            Inst_data* to_type_in_tile;
             for(int BIT = FF_lib_bits.size()-1 ; BIT > 0 ; BIT--)
             {
                 if(FF_lib_bits[BIT].size() == 0)
@@ -684,14 +689,15 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
                     cost += beta * FF_lib_bits[BIT][j]->power + gamma * FF_lib_bits[BIT][j]->width * FF_lib_bits[BIT][j]->height;
                     if(cost < delta_bit)
                     {
-                        best_closest = closest;
+                        closest_tile = closest;
                         delta_bit = cost;
+                        to_type_in_tile = FF_lib_bits[BIT][j];
                     }
                     break;
                 }
             }
             double time_cost = 0;
-            for(auto FF:best_closest)
+            for(auto FF:closest_tile)
             {
                 for(auto p: FF->INs)
                     time_cost += max({-p->slack + alpha*(abs(tile.coord[0].x - FF->LeftDown().x) + abs(tile.coord[0].y - FF->LeftDown().y),0.0)});
@@ -699,11 +705,18 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
             if(time_cost + delta_bit < best_delta)
             {
                 best_delta = time_cost;
-                to_banks[i] = best_closest;
+                best_closest = closest_tile;
+                best_to_insert = tile;
+                to_type = to_type_in_tile;
+                
             }
-            
         }
+        to_banks[i] = best_closest;
+        bank(to_banks[i],to_type);
+        
     }
+
+
 }
 
 list<Tile> Plane_E::region_insertable(vector<Tile*> space_list)
