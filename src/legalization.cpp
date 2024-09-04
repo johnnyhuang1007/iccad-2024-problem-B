@@ -23,44 +23,147 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
     double prev_n_slack = negative_slack;
     double prev_p_slack = positive_slack;
     double T_val = (prev_p_slack - prev_n_slack)*(prev_p_slack - prev_n_slack);
-    vector<Point> movements;
-    movements.reserve(FF_list_bank.size());
-    int check = rand()%FF_list_bank.size();
 
+    int check = rand()%FF_list_bank.size();
+    vector<Inst*> FFs_x = FF_list_bank;
+    vector<Inst*> FFs_y = FF_list_bank;
+    sort(FFs_x.begin(),FFs_x.end(),[](Inst* a, Inst* b){return a->LeftDown().x < b->LeftDown().x;});
+    sort(FFs_y.begin(),FFs_y.end(),[](Inst* a, Inst* b){return a->LeftDown().y < b->LeftDown().y;});
+    vector<int> x_idx_map(FFs_x.size());
+    vector<int> y_idx_map(FFs_y.size());
+    for(int i = 0 ; i < FFs_x.size() ; i++)
+    {
+        x_idx_map[FFs_x[i]->idx] = i;
+    }
+    for(int i = 0 ; i < FFs_y.size() ; i++)
+    {
+        y_idx_map[FFs_y[i]->idx] = i;
+    }
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     { 
+        
         double prev_neg_slack = negative_slack;
         double prev_pos_slack = positive_slack;
         double prev_smooth_util = smoothen_bin_util;
         Point prev = FF_list_bank[i]->LeftDown();
-        int dir = rand()%4;
-        if(prev.y < 0 || prev.y > Height)
+        
+        int swap_choice = rand()%(40);
+        if(swap_choice == 1)
         {
-            cout<<prev<<endl;
-            exit(1);
-        }
-        Point net_LD = next_on_site_move(FF_list_bank[i],DIRS[dir],step);
-        Tile next_Placement = Tile(net_LD,net_LD + Point(height(FF_list_bank[i]->get_root()) - 1,width(FF_list_bank[i]->get_root()) - 1));
-        Tile* start;
-        if(!FF_list_bank[i]->inserted)
-        {
-            start = G_list[rand()%G_list.size()]->get_root();
+            
+            
+            
+            list<int> idx_l;
+            for(int j = x_idx_map[FF_list_bank[i]->idx]+1 ; j < FF_list_bank.size() && FFs_x[j]->LeftDown().x <= FF_list_bank[i]->LeftDown().x + Width/20 ; j++)
+                idx_l.push_back(FFs_x[j]->idx);
+            for(int j = x_idx_map[FF_list_bank[i]->idx]-1 ; j >= 0 && FFs_x[j]->LeftDown().x >= FF_list_bank[i]->LeftDown().x - Width/20 ; j--)
+                idx_l.push_back(FFs_x[j]->idx);
+            for(int j = y_idx_map[FF_list_bank[i]->idx]+1 ; j < FF_list_bank.size() && FFs_y[j]->LeftDown().y <= FF_list_bank[i]->LeftDown().y + Height/20 ; j++)
+                idx_l.push_back(FFs_y[j]->idx);
+            for(int j = y_idx_map[FF_list_bank[i]->idx]-1 ; j >= 0 && FFs_y[j]->LeftDown().y >= FF_list_bank[i]->LeftDown().y - Height/20 ; j--)
+                idx_l.push_back(FFs_y[j]->idx);
+            vector<int> idxs{idx_l.begin(),idx_l.end()};
+            sort(idxs.begin(),idxs.end(),[this,i](int a, int b){
+                return abs(FF_list_bank[i]->LeftDown().x - FF_list_bank[a]->LeftDown().x) + abs(FF_list_bank[i]->LeftDown().y - FF_list_bank[a]->LeftDown().y) < abs(FF_list_bank[i]->LeftDown().x - FF_list_bank[b]->LeftDown().x) + abs(FF_list_bank[i]->LeftDown().y - FF_list_bank[b]->LeftDown().y);});
+            
+            double prev_cost = cost();
+            double prev_pos = positive_slack;
+            Point prev1 = FF_list_bank[i]->LeftDown();
+            remove_Inst(FF_list_bank[i]);
+            for(int j = 0 ; j < 10 && j < idxs.size() ; j++)
+            {
+                int idx = idxs[j];
+                Point prev2 = FF_list_bank[idx]->LeftDown();
+                remove_Inst(FF_list_bank[idx]);
+                set_and_propagate(FF_list_bank[i],prev2);
+                set_and_propagate(FF_list_bank[idx],prev1);
+                if(insert_inst(FF_list_bank[i]) && insert_inst(FF_list_bank[idx]))
+                {
+                    if(cost() < prev_cost || (positive_slack >= prev_pos && cost() <= prev_cost))
+                    {
+                        swap(FFs_x[x_idx_map[FF_list_bank[i]->idx]],FFs_x[x_idx_map[FF_list_bank[idx]->idx]]);
+                        swap(FFs_y[y_idx_map[FF_list_bank[i]->idx]],FFs_y[y_idx_map[FF_list_bank[idx]->idx]]);
+                        swap(x_idx_map[FF_list_bank[i]->idx],x_idx_map[FF_list_bank[idx]->idx]);
+                        swap(y_idx_map[FF_list_bank[i]->idx],y_idx_map[FF_list_bank[idx]->idx]);
+                        break;
+                    }
+                    remove_Inst(FF_list_bank[i]);
+                    remove_Inst(FF_list_bank[idx]);
+                    set_and_propagate(FF_list_bank[i],prev1);
+                    set_and_propagate(FF_list_bank[idx],prev2);
+                    insert_inst(FF_list_bank[idx]);
+                }
+                else
+                {
+                    remove_Inst(FF_list_bank[i]);
+                    remove_Inst(FF_list_bank[idx]);
+                    set_and_propagate(FF_list_bank[i],prev1);
+                    set_and_propagate(FF_list_bank[idx],prev2);
+                    insert_inst(FF_list_bank[idx]);
+                }
+            }
+            insert_inst(FF_list_bank[i]);
         }
         else
-            start = FF_list_bank[i]->get_root();
-        if(!checkAllSpace(&next_Placement,start))
         {
-            continue;
+            int dir = rand()%4;
+            if(prev.y < 0 || prev.y > Height)
+            {
+                cout<<prev<<endl;
+                exit(1);
+            }
+            int S = rand()%step + 1;
+            Point net_LD = next_on_site_move(FF_list_bank[i],DIRS[dir],S);
+            Tile next_Placement = Tile(net_LD,net_LD + Point(height(FF_list_bank[i]->get_root()) - 1,width(FF_list_bank[i]->get_root()) - 1));
+            Tile* start;
+            if(!FF_list_bank[i]->inserted)
+            {
+                start = G_list[rand()%G_list.size()]->get_root();
+            }
+            else
+                start = FF_list_bank[i]->get_root();
+            if(!checkAllSpace(&next_Placement,start))
+            {
+                continue;
+            }
+            double prev_cost = cost();
+            remove_Inst(FF_list_bank[i]);
+            unit_move_and_propagate(FF_list_bank[i],DIRS[dir],S);
+            insert_inst(FF_list_bank[i]);
+            if(cost() <= prev_cost)
+            {
+                int cur_x_idx = x_idx_map[FF_list_bank[i]->idx];
+                int cur_y_idx = y_idx_map[FF_list_bank[i]->idx];
+                while(cur_x_idx > 0 && FFs_x[cur_x_idx]->LeftDown().x < FFs_x[cur_x_idx-1]->LeftDown().x)
+                {
+                    swap(FFs_x[cur_x_idx],FFs_x[cur_x_idx-1]);
+                    swap(x_idx_map[FFs_x[cur_x_idx]->idx],x_idx_map[FFs_x[cur_x_idx-1]->idx]);
+                    cur_x_idx--;
+                }
+                while(cur_x_idx < FFs_x.size()-1 && FFs_x[cur_x_idx]->LeftDown().x > FFs_x[cur_x_idx+1]->LeftDown().x)
+                {
+                    swap(FFs_x[cur_x_idx],FFs_x[cur_x_idx+1]);
+                    swap(x_idx_map[FFs_x[cur_x_idx]->idx],x_idx_map[FFs_x[cur_x_idx+1]->idx]);
+                    cur_x_idx++;
+                }
+                while(cur_y_idx > 0 && FFs_y[cur_y_idx]->LeftDown().y < FFs_y[cur_y_idx-1]->LeftDown().y)
+                {
+                    swap(FFs_y[cur_y_idx],FFs_y[cur_y_idx-1]);
+                    swap(y_idx_map[FFs_y[cur_y_idx]->idx],y_idx_map[FFs_y[cur_y_idx-1]->idx]);
+                    cur_y_idx--;
+                }
+                while(cur_y_idx < FFs_y.size()-1 && FFs_y[cur_y_idx]->LeftDown().y > FFs_y[cur_y_idx+1]->LeftDown().y)
+                {
+                    swap(FFs_y[cur_y_idx],FFs_y[cur_y_idx+1]);
+                    swap(y_idx_map[FFs_y[cur_y_idx]->idx],y_idx_map[FFs_y[cur_y_idx+1]->idx]);
+                    cur_y_idx++;
+                }
+                continue;
+            }
+            remove_Inst(FF_list_bank[i]);
+            set_and_propagate(FF_list_bank[i],prev);
+            insert_inst(FF_list_bank[i]);
         }
-        double prev_cost = cost();
-        remove_Inst(FF_list_bank[i]);
-        unit_move_and_propagate(FF_list_bank[i],DIRS[dir],step);
-        insert_inst(FF_list_bank[i]);
-        if(cost() <= prev_cost)
-            continue;
-        remove_Inst(FF_list_bank[i]);
-        set_and_propagate(FF_list_bank[i],prev);
-        insert_inst(FF_list_bank[i]);
     }
 
     cout<<"negative_slack   "<<negative_slack<<endl;

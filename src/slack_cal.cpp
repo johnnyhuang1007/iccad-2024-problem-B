@@ -138,6 +138,8 @@ void Pin::arrival_time_propagation()
             cur->arrival_time = 0;
             cur->path_seq.clear();
             cur->path_seq.push_back(cur);
+            if(cur->belong_net==NULL)
+                continue;
             for(int i = 0 ; i < cur->belong_net->TOs.size() ; i++)
                 to_prop.push(cur->belong_net->TOs[i]);
         }
@@ -149,6 +151,8 @@ void Pin::arrival_time_propagation()
             cur->arrival_time = new_arrival;
             cur->path_seq.clear();
             cur->path_seq.push_back(cur);
+            if(cur->belong_net==NULL)
+                continue;
             for(int i = 0 ; i < cur->belong_net->TOs.size() ; i++)
                 to_prop.push(cur->belong_net->TOs[i]);
         }
@@ -195,6 +199,8 @@ void Pin::arrival_time_propagation()
         }
         else if(cur->pin_type == cur->belong_Inst->get_name() && cur->type == 'I')
         {
+            if(cur->belong_net==NULL)
+                continue;
             double new_arrival = HPWL(cur->belong_net->FROMs[0],cur) + cur->belong_net->FROMs[0]->arrival_time;
             if(cur->arrival_time == new_arrival)
                 continue;
@@ -204,6 +210,8 @@ void Pin::arrival_time_propagation()
         }
         else if(cur->pin_type[0] == 'D')
         {
+            if(cur->belong_net==NULL)
+                continue;
             double new_arrival = HPWL(cur->belong_net->FROMs[0],cur) + cur->belong_net->FROMs[0]->arrival_time;
             if(cur->arrival_time == new_arrival)
                 continue;
@@ -225,13 +233,15 @@ void Pin::arrival_time_propagation()
         }
         else if(cur->type == 'I')    //gate input
         {
+            if(cur->belong_net==NULL)
+                continue;
             double new_arrival = HPWL(cur->belong_net->FROMs[0],cur) + cur->belong_net->FROMs[0]->arrival_time;
             if(cur->arrival_time == new_arrival)
                 continue;
             cur->path_seq = cur->belong_net->FROMs[0]->path_seq;
             cur->path_seq.push_back(cur);
             cur->arrival_time = new_arrival;
-
+            
             for(int i = 0 ; i < cur->belong_Inst->OUTs.size() ; i++)
                 to_prop.push(cur->belong_Inst->OUTs[i]);
         }
@@ -332,6 +342,8 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
         path_seq.clear();
         path_seq.push_back(this);
         vector<double> vals{0.0,0.0};
+        if(this->belong_net==NULL)
+            return vals;
         for(int i = 0 ; i < belong_net->TOs.size() ; i++)
         {
             vector<double> tmp = belong_net->TOs[i]->slack_propagation(modified_Pin,0);
@@ -353,6 +365,8 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
         path_seq.clear();
         path_seq.push_back(this);
         vector<double> vals{0.0,0.0};
+        if(this->belong_net==NULL)
+            return vals;
         for(int i = 0 ; i < belong_net->TOs.size() ; i++)
         {
             vector<double> tmp = belong_net->TOs[i]->slack_propagation(modified_Pin,0);
@@ -376,6 +390,8 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
         
 
         vector<double> vals{0.0,0.0};
+        if(this->belong_net==NULL)
+            return vals;
         for(int i = 0 ; i < belong_net->TOs.size() ; i++)
         {
             vector<double> tmp = belong_net->TOs[i]->slack_propagation(modified_Pin,0);
@@ -386,7 +402,8 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
     }
     else if(pin_type == belong_Inst->get_name() && type == 'I')
     {
-        
+        if(this->belong_net==NULL)
+            return vector<double>{0.0,0.0};
         if(belong_net->FROMs.size()!=1)
             cout<<"??????????"<<endl;
         double new_arrival = HPWL(belong_net->FROMs[0],this) + belong_net->FROMs[0]->arrival_time;
@@ -401,6 +418,8 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
     }
     else if(pin_type[0] == 'D')
     {
+        if(this->belong_net==NULL)
+            return vector<double>{0.0,0.0};
         if(belong_net->FROMs.size()!=1)
             cout<<"??????????"<<endl;
         double new_arrival = HPWL(belong_net->FROMs[0],this) + belong_net->FROMs[0]->arrival_time;
@@ -443,6 +462,8 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
     {
         if(recursive)
             vector<double>{0.0,0.0};
+        if(this->belong_net==NULL)
+            return vector<double>{0.0,0.0};
         if(belong_net->FROMs.size()!=1)
             cout<<"??????????"<<endl;
         double new_arrival = HPWL(belong_net->FROMs[0],this) + belong_net->FROMs[0]->arrival_time;

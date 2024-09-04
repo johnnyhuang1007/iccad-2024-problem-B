@@ -151,9 +151,9 @@ void Plane_E::add_smooth_util(Inst* cur)
     {
         for(int j = max(idxL,0) ; (j <= idxR) && (j <= (Bins[i].size()-1)) ; j++ )
         {
-            smoothen_bin_util -= pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 1000.0),2);
+            smoothen_bin_util -= pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 300.0),2);
             Bins[i][j].smoothen_area += const_val*unit_areas_vec[cnt++];
-            smoothen_bin_util += pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 1000.0),2);
+            smoothen_bin_util += pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 300.0),2);
         }
     }
 }
@@ -187,14 +187,9 @@ void Plane_E::min_smooth_util(Inst* cur)
     {
         for(int j = max(idxL,0) ; (j <= idxR) && (j <= (Bins[i].size()-1)) ; j++ )
         {
-            smoothen_bin_util -= pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 1000.0),2);
+            smoothen_bin_util -= pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 300.0),2);
             Bins[i][j].smoothen_area -= const_val*unit_areas_vec[cnt++];
-            smoothen_bin_util += pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 1000.0),2);
-            if(smoothen_bin_util < 0)
-            {
-                cout<<"ERROR"<<endl;
-                exit(1);
-            }
+            smoothen_bin_util += pow(max(0.0,Bins[i][j].smoothen_area - bin_area * BinMaxUtil / 300.0),2);
         }
     }
 }
