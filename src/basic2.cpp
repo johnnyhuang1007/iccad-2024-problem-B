@@ -189,13 +189,14 @@ vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile,Tile* start)
 {
 	set<Tile*> return_list;
 	Tile* curSpace = point_finding(LD(inTile),start);
-	
 	int current_height = RU(inTile).y;
 	int current_lower = LD(inTile).y;
 	//cout<<"SEARCHING SPACE"<<endl;
 	while (1)
 	{
 		//cout<<*curSpace<<endl;
+		if(curSpace == NULL)
+			return vector<Tile*>{return_list.begin(),return_list.end()};
 		if (curSpace->is_space())
 			return_list.insert(curSpace);
 		if(current_height > RU(curSpace).y)
@@ -227,6 +228,7 @@ vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile,Tile* start)
 vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile)
 {
 	set<Tile*> return_list;
+	
 	Tile* curSpace = point_finding(LD(inTile));
 	
 	int current_height = RU(inTile).y;
@@ -234,6 +236,8 @@ vector<Tile*> Plane::getSpaceTileInRegion(Tile* inTile)
 	//cout<<"SEARCHING SPACE"<<endl;
 	while (1)
 	{
+		if(curSpace == NULL)
+			return vector<Tile*>{return_list.begin(),return_list.end()};
 		//cout<<*curSpace<<endl;
 		if (curSpace->is_space())
 			return_list.insert(curSpace);

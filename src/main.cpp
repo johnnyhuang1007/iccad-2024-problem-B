@@ -10,95 +10,59 @@ int main(int argc, char** argv)
     double start = clock();
     double cost;
     Plane_E chip(argv[1]);
-    chip.debank();
-    chip.write_input_format("input.txt");
-    chip.set_on_site();
-    chip.location_legalization();
-    chip.output(argv[2]);
     cost = chip.cost();
-
-    chip.remove_FFs();
-    int step = 40;
-    /*
-    step = 40;
-    for(int j = 0 ; j < 500 ; j++)
+    chip.debank();
+    
+    for(int itr = 0 ; itr < 5 ; itr++)
     {
-        chip.robust_slack_optimizer(40);
-    }
-    for(int j = 0 ; j < 300 ; j++)
-    {
-        chip.robust_slack_optimizer(20);
-    }
-    for(int j = 0 ; j < 200 ; j++)
-    {
-        chip.robust_slack_optimizer(3);
-    }
-    if(chip.cost() < cost)
-    {
-        cost = chip.cost();
+        double costa = cost;
+        chip.set_on_site();
+        chip.location_legalization();
         chip.output(argv[2]);
-    }
-    */
-    /*
-    cout<<"HPWL OPTIMIZATION"<<endl;
-    double weight = 5000;
-    while(weight > 4000)
-    {
-        for(int i = 0 ; i < 5 ; i++)
+        cost = chip.cost();
+        if(itr<=1)
+            chip.remove_FFs();
+        int step = 40;
+        
+        chip.legality_look_ahead_banking();
+        chip.set_on_site();
+        chip.location_legalization();
+        if(chip.cost() < cost)
         {
-            chip.update_slack_pin_weight(weight);
-            chip.HPWL_optimizer();
-            chip.set_on_site();
+            cost = chip.cost();
+            chip.output(argv[2]);
         }
-        weight*=0.7;
+        cout<<"MOVEMENT"<<endl;
+        //fine tune
+        step = 40;
+        for(int j = 0 ; j < 15 ; j++)
+        {
+            chip.robust_slack_optimizer(40);
+        }
+        if(chip.cost() < cost)
+        {
+            cost = chip.cost();
+            chip.output(argv[2]);
+        }
+        if(costa < chip.cost()*(1.02))
+            break;
     }
-
-    cout<<"SLACK OPTIMIZATION"<<endl;
-     step = 40;
+    int itr = 0;
+    int step = 40;
     while(step >= 1)
     {
-        for(int j = 0 ; j < 5 ; j++)
+        double prev_cost = chip.cost();
+        for(int j = 0 ; j < 15 ; j++)
         {
-            chip.slack_optimizer(step);
+            chip.robust_slack_optimizer(step);
         }
-        step*=0.7;
+        step*=0.85; 
+        if(prev_cost < chip.cost()*(1.005))
+            break;
+        itr++;
     }
-    */
-    //chip.location_legalization();
-    //chip.remove_FFs();
-    
-    chip.legality_look_ahead_banking();
-    chip.set_on_site();
-    chip.location_legalization();
-    if(chip.cost() < cost)
-    {
-        cost = chip.cost();
-        chip.output(argv[2]);
-    }
-    cout<<"MOVEMENT"<<endl;
-    //fine tune
-    step = 40;
-    for(int j = 0 ; j < 500 ; j++)
-    {
-        chip.robust_slack_optimizer(40);
-    }
-    for(int j = 0 ; j < 300 ; j++)
-    {
-        chip.robust_slack_optimizer(20);
-    }
-    for(int j = 0 ; j < 200 ; j++)
-    {
-        chip.robust_slack_optimizer(3);
-    }
-    if(chip.cost() < cost)
-    {
-        cost = chip.cost();
-        chip.output(argv[2]);
-    }
-    chip.pin_swapping();
     //cout<< end time
     cout<<(clock() - start) / 1000000.0<<endl;
-    chip.write_input_format("input.txt");
     chip.output(argv[2]);
     cout<<"END"<<endl;
     

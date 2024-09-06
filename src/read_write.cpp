@@ -155,15 +155,21 @@ void Plane_E::read_output_format(string f)
         
         for(Pin* p:FF_list_bank[i]->INs)
         {
-            p->belong_net->set_center();
-            Point HPWL_vec = p->belong_net->center_of_FROMs -  p->abs_loc();
-            HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
+            for(int k = 0 ; k < p->belong_nets.size() ; k++)
+            {
+                p->belong_nets[k]->set_center();
+                Point HPWL_vec = p->belong_nets[k]->center_of_FROMs -  p->abs_loc();
+                HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
+            }
         }
         for(Pin* p:FF_list_bank[i]->OUTs)
         {
-            p->belong_net->set_center();
-            Point HPWL_vec = p->belong_net->center_of_TOs -  p->abs_loc();
-            HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
+            for(int k = 0 ; k < p->belong_nets.size() ; k++)
+            {
+                p->belong_nets[k]->set_center();
+                Point HPWL_vec = p->belong_nets[k]->center_of_TOs -  p->abs_loc();
+                HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
+            }
         }
     }
 

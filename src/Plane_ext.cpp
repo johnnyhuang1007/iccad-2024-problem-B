@@ -239,6 +239,7 @@ Plane_E::Plane_E(string input)
     } 
     for(int i = 0 ; i < )
     */
+
 } 
 
 double Plane_E::cost()
@@ -533,7 +534,7 @@ void Plane_E::SET_NET(ifstream& fin)
         {
             fin>>Word>>Word;
             Pin* cur_pin = find_pin_by_FFsPinName(Word);
-            cur_pin->belong_net = new_net;
+            cur_pin->belong_nets.push_back(new_net);
             new_net->relative.push_back(cur_pin);
         }
         net_list.push_back(new_net);
@@ -1078,8 +1079,12 @@ void Plane_E::IOC_distinguish()
         for(int i = start_point ; i < cur->INs.size() ; i++)
         {
             Pin* newCLK = new Pin(*cur->CLK[0]);
-            newCLK->belong_net->relative.push_back(newCLK);
-            newCLK->belong_net->CLKs.push_back(newCLK);
+            for(int k = 0 ; k < cur->CLK[0]->belong_nets.size() ; k++)
+            {
+                newCLK->belong_nets[k]->relative.push_back(newCLK);
+                newCLK->belong_nets[k]->CLKs.push_back(newCLK);
+            }
+            
             cur->CLK.push_back(newCLK);
             newCLK->orginal_Inst->CLK.push_back(newCLK);
         }

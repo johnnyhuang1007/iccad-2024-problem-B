@@ -15,6 +15,41 @@ bool slack_compare(Inst* a, Inst* b)
     return slack1 < slack2;
 }
 
+bool Plane_E::is_on_site(Point cur)
+{
+    for(int i = 0 ; i < PlacementRows.size() ; i++)
+    {
+        if(PlacementRows[i].left_down.y == cur.y)
+        {
+            if((cur.x - PlacementRows[i].left_down.x)%PlacementRows[i].siteWidth != 0)
+                return 0;
+            if((cur.x - PlacementRows[i].left_down.x)/PlacementRows[i].siteWidth >= PlacementRows[i].count)
+                return 0;
+            if(cur.x < PlacementRows[i].left_down.x)
+                return 0;
+            return 1;
+        }
+    }
+    return 1;
+}
+
+bool Plane_E::is_on_site(Inst* cur)
+{
+    for(int i = 0 ; i < PlacementRows.size() ; i++)
+    {
+        if(PlacementRows[i].left_down.y == cur->LeftDown().y)
+        {
+            if((cur->LeftDown().x - PlacementRows[i].left_down.x)%PlacementRows[i].siteWidth != 0)
+                return 0;
+            if((cur->LeftDown().x - PlacementRows[i].left_down.x)/PlacementRows[i].siteWidth >= PlacementRows[i].count)
+                return 0;
+            if(cur->LeftDown().x < PlacementRows[i].left_down.x)
+                return 0;
+            return 1;
+        }
+    }
+    return 1;
+}
 
 void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the next result is legal, and the solution is better
 {
@@ -39,20 +74,18 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
     {
         y_idx_map[FFs_y[i]->idx] = i;
     }
+    //randomize FF_list
+    
     for(int i = 0 ; i < FF_list_bank.size() ; i++)
     { 
-        
         double prev_neg_slack = negative_slack;
         double prev_pos_slack = positive_slack;
         double prev_smooth_util = smoothen_bin_util;
         Point prev = FF_list_bank[i]->LeftDown();
         
-        int swap_choice = rand()%(40);
-        if(swap_choice == 1)
+        int choice = rand()%35;
+        if(choice == 0)
         {
-            
-            
-            
             list<int> idx_l;
             for(int j = x_idx_map[FF_list_bank[i]->idx]+1 ; j < FF_list_bank.size() && FFs_x[j]->LeftDown().x <= FF_list_bank[i]->LeftDown().x + Width/20 ; j++)
                 idx_l.push_back(FFs_x[j]->idx);
@@ -103,6 +136,7 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
                 }
             }
             insert_inst(FF_list_bank[i]);
+            
         }
         else
         {
@@ -113,16 +147,32 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
                 exit(1);
             }
             int S = rand()%step + 1;
-            Point net_LD = next_on_site_move(FF_list_bank[i],DIRS[dir],S);
-            Tile next_Placement = Tile(net_LD,net_LD + Point(height(FF_list_bank[i]->get_root()) - 1,width(FF_list_bank[i]->get_root()) - 1));
-            Tile* start;
-            if(!FF_list_bank[i]->inserted)
+            bool success = 0;
+            for(int STEP = S ; STEP >= max(1, S-15) ; STEP--)
             {
-                start = G_list[rand()%G_list.size()]->get_root();
-            }
-            else
-                start = FF_list_bank[i]->get_root();
-            if(!checkAllSpace(&next_Placement,start))
+                //cout<<STEP<<endl;
+                Point net_LD = next_on_site_move(FF_list_bank[i],DIRS[dir],STEP);
+                Tile next_Placement = Tile(net_LD,net_LD + Point(height(FF_list_bank[i]->get_root()) - 1,width(FF_list_bank[i]->get_root()) - 1));
+                Tile* start;
+                if(!FF_list_bank[i]->inserted)
+                {
+                    start = G_list[rand()%G_list.size()]->get_root();
+                }
+                else
+                    start = FF_list_bank[i]->get_root();
+                //cout<<"CHECK "<< next_Placement<<endl;
+                if(!checkAllSpace(&next_Placement,start))
+                {
+                    continue;
+                }
+                else
+                {
+                    success =1;
+                    S = STEP;
+                    break;
+                }
+            }   
+            if(!success)
             {
                 continue;
             }
@@ -130,6 +180,8 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
             remove_Inst(FF_list_bank[i]);
             unit_move_and_propagate(FF_list_bank[i],DIRS[dir],S);
             insert_inst(FF_list_bank[i]);
+
+            //maintain order
             if(cost() <= prev_cost)
             {
                 int cur_x_idx = x_idx_map[FF_list_bank[i]->idx];
@@ -163,6 +215,7 @@ void Plane_E::robust_slack_optimizer(int step)  //it makes the move only if the 
             remove_Inst(FF_list_bank[i]);
             set_and_propagate(FF_list_bank[i],prev);
             insert_inst(FF_list_bank[i]);
+            continue;
         }
     }
 
@@ -184,8 +237,8 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
     for(int i = 0 ; i < to_fix.size() ; i++)
     {
         Inst* FF = to_fix[i];
-        cout<<cnt++<<endl;
-        cout<<negative_slack<<endl;
+        //cout<<cnt++<<endl;
+        //cout<<negative_slack<<endl;
         //cout<<FF->idx<<endl;
         //cout<<FF->get_name()<<endl; 
         if(insert_inst(FF) || FF->inserted)
@@ -225,12 +278,12 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
         while(!inserted)
         {
             
-            cout<<"SEARECHING REGION"<<endl;
-            cout<<pseudo_tile<<endl;
+            //cout<<"SEARECHING REGION"<<endl;
+            //cout<<pseudo_tile<<endl;
             start = point_finding(LD(&pseudo_tile),start);
             vector<Tile*> solid_vec = getSolidTileInRegion(&pseudo_tile,start);
             //find min size to include all the solid
-            cout<<"REGION SOLID"<<endl;
+            //cout<<"REGION SOLID"<<endl;
             for(auto& solid : solid_vec)
             {
                 //cout<<*solid<<endl;
@@ -265,13 +318,13 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
                 LD(&pseudo_tile).y--;
             else
                 LD(&pseudo_tile).y = 1;
-            cout<<"SEARECHING REGION"<<endl;
+            //cout<<"SEARECHING REGION"<<endl;
             
-            cout<<pseudo_tile<<endl;
+            //cout<<pseudo_tile<<endl;
             start = point_finding(LD(&pseudo_tile),start);
             vector<Tile*> region_spaces = getSpaceTileInRegion(&pseudo_tile,start);
-            cout<<pseudo_tile<<endl;
-            cout<<"REGION SPACE"<<endl;
+            //cout<<pseudo_tile<<endl;
+            //cout<<"REGION SPACE"<<endl;
             for(auto& space : region_spaces)
             {
                 if(width(space) > width(&pseudo_tile) * 2)
@@ -352,30 +405,42 @@ void Plane_E::location_legalization(vector<Inst*> to_fix)
         //}
         bool success = 0;
         Point org = FF->LeftDown();
+        double prev_cost = __DBL_MAX__;
+        Point best;
         for(Tile pos : possible_tiles)
         {
-            cout<<"TRYING: "<<pos<<endl;
-            cout<<width(FF->get_root())<<endl;
-            cout<<height(FF->get_root())<<endl;
+            //cout<<"TRYING: "<<pos<<endl;
+            //cout<<width(FF->get_root())<<endl;
+            //cout<<height(FF->get_root())<<endl;
             Point to_insert_pos = min_displacement_loc(FF,&pos);//condition and region  //use packing method and need to be legal
-            cout<<"to_insert_pos "<<to_insert_pos<<endl;
+            //cout<<"to_insert_pos "<<to_insert_pos<<endl;
             if(to_insert_pos.x > Width)
                 continue;
-            cout<<"INSERTION"  <<endl;
+            //cout<<"INSERTION"  <<endl;
             set_and_propagate(FF,to_insert_pos);
-            cout<<"INSERTION";
+            //cout<<"INSERTION";
             if(insert_inst(FF))
             {
+                if(cost() < prev_cost)
+                {
+                    prev_cost = cost();
+                    best = to_insert_pos;
+                }
                 success = 1;
-                cout<<" SUCCESS"<<endl;
-                break;
+                //cout<<" SUCCESS"<<endl;
+                remove_Inst(FF);
             }
-            cout<<" FAIL"<<endl;
+            //cout<<" FAIL"<<endl;
         }
         if(!success)
         {
             set_and_propagate(FF,org);
             goto find;
+        }
+        else
+        {
+            set_and_propagate(FF,best);
+            insert_inst(FF);
         }
         if(width(&pseudo_tile)/1000 > width(&max_region))
         {
@@ -416,8 +481,8 @@ Point Plane_E::min_displacement_loc(Inst* condition, Tile* region)
     } 
 
 
-    cout<<"LD_yidx "<<PlacementRows[LD_yidx].left_down.y<<endl;
-    cout<<"RU_yidx "<<PlacementRows[RU_yidx].left_down.y<<endl;
+    //cout<<"LD_yidx "<<PlacementRows[LD_yidx].left_down.y<<endl;
+    //cout<<"RU_yidx "<<PlacementRows[RU_yidx].left_down.y<<endl;
     int min_dist = __INT_MAX__;
     Point insert(Height,Width);
 
@@ -437,13 +502,13 @@ Point Plane_E::min_displacement_loc(Inst* condition, Tile* region)
         if(RU_xidx >= PlacementRows[i].count)
             RU_xidx = PlacementRows[i].count -1;
         
-        cout<<"cur I "<<i<<endl;
-        cout<<"LD_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx<<endl;
-        cout<<"RU_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * RU_xidx<<endl;
+        //cout<<"cur I "<<i<<endl;
+        //cout<<"LD_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx<<endl;
+        //cout<<"RU_xidx "<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * RU_xidx<<endl;
         if(LD_xidx > RU_xidx)
             continue;
-        cout<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx + width(condition) -1<<endl;
-        cout<<region_RU.x<<endl;
+        //cout<<PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx + width(condition) -1<<endl;
+        //cout<<region_RU.x<<endl;
         if(PlacementRows[i].left_down.x + PlacementRows[i].siteWidth * LD_xidx + width(condition) -1 > region_RU.x)
             continue;
         Point vec = Point(PlacementRows[i].left_down.y,PlacementRows[i].left_down.x + PlacementRows[i].siteWidth *LD_xidx)  - LD(condition);

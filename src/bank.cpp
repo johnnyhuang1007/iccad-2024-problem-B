@@ -5,6 +5,8 @@
 #define u_map_itr(T) unordered_map<std::string,T>::const_iterator
 using namespace std;
 
+vector<Inst* > get_n_cloest_FF(vector<Inst*> to_banks,Tile tile, int bits);
+
 void Plane_E::debank()
 {
     for(net* contain_clk_net : clk_net_list)
@@ -29,16 +31,16 @@ void Plane_E::bank()
 
 void Plane_E::same_domain_debanking(net* cur_domain)
 {
-    cout<<endl;
-    cout<<"FF DEBANK"<<endl;
-    cout<<endl;
+    //cout<<endl;
+    //cout<<"FF DEBANK"<<endl;
+    //cout<<endl;
     vector<Inst*> FFs = get_same_domain_FFs(cur_domain);
     for(int i = 0 ; i < FFs.size() ; i++)
     {
-        cout<<FFs[i]->get_name()<<endl;
-        for(Pin* p:FFs[i]->Pins)
-            cout<<p->get_name()<<endl;
-        cout<<endl;
+        //cout<<FFs[i]->get_name()<<endl;
+        //for(Pin* p:FFs[i]->Pins)
+        //    cout<<p->get_name()<<endl;
+        //cout<<endl;
         debank(FFs[i]);
     }
         
@@ -88,7 +90,7 @@ vector<pair<Inst*,set<pair<double,Inst*>>>> Plane_E::min_total_displacement_k_me
     for(Inst* FF:FFs_x)
         k_mean_list.push_back(make_pair(FF,set<pair<double,Inst*>>{}));
     
-    cout<<"FF_lib_bits "<<FF_lib_bits.size()<<endl;
+    //cout<<"FF_lib_bits "<<FF_lib_bits.size()<<endl;
     for(int x_idx = 0 ; x_idx < k_mean_list.size() ; x_idx++)
     {
         int y_idx = -1;
@@ -100,7 +102,7 @@ vector<pair<Inst*,set<pair<double,Inst*>>>> Plane_E::min_total_displacement_k_me
                 break;
             }
         }
-        cout<<y_idx<<endl;
+        //cout<<y_idx<<endl;
         for(int i = x_idx+1 ; i <= x_idx+FF_lib_bits.size() && i < FFs_x.size() ; i++)
         {
             k_mean_list[x_idx].second.insert(make_pair(effective_dist(k_mean_list[x_idx].first,FFs_x[i]),FFs_x[i]));
@@ -141,8 +143,8 @@ vector<pair<Inst*,set<pair<double,Inst*>>>> Plane_E::min_total_displacement_k_me
             cnt += neighbor.second->INs.size();
         }
     }
-    sort(k_mean_list.begin(),k_mean_list.end(),[total_displace](pair<Inst*,set<pair<double,Inst*>>>& a,pair<Inst*,set<pair<double,Inst*>>>& b){return total_displace[a.first->idx] < total_displace[b.first->idx];});
-    cout<<"READY TO BANK"<<endl;
+    sort(k_mean_list.begin(),k_mean_list.end(),[total_displace](pair<Inst*,set<pair<double,Inst*>>> a,pair<Inst*,set<pair<double,Inst*>>> b){return total_displace[a.first->idx] < total_displace[b.first->idx];});
+    //cout<<"READY TO BANK"<<endl;
     return k_mean_list;
 }
 
@@ -176,10 +178,10 @@ void Plane_E::same_domain_banking(net* cur_domain)
             still_exist.erase(itr);
         }
     }
-    cout<<"BANKING"<<endl;
+    //cout<<"BANKING"<<endl;
     for(int i = 0 ; i < to_banks.size() ; i++)
     {
-        cout<<"START"<<endl;
+        //cout<<"START"<<endl;
         if(to_banks[i].size() == 0)
             continue;
         int bits = 0;
@@ -187,11 +189,11 @@ void Plane_E::same_domain_banking(net* cur_domain)
             bits += to_bank->INs.size();
         if(bits >= FF_lib_bits.size())
             continue;
-        cout<<"CURRENT BITS: "<<bits<<endl;
+        //cout<<"CURRENT BITS: "<<bits<<endl;
 
         if(FF_lib_bits[bits].size() == 0)
         {
-            cout<<"SPECIAL CASE"<<endl;
+            //cout<<"SPECIAL CASE"<<endl;
             bool success = 0;
             //inverse list iteration
             for(int j = to_banks[i].size()-1 ; j >= 0 ; j--)
@@ -201,7 +203,7 @@ void Plane_E::same_domain_banking(net* cur_domain)
                     bits = bits - to_banks[i][j]->INs.size();
                     to_banks[i][j] = to_banks[i].back();
                     to_banks[i].pop_back();
-                    cout<<"SUCCESS"<<   endl;
+                    //cout<<"SUCCESS"<<   endl;
                     success = 1;
                     break;
                 }
@@ -209,9 +211,9 @@ void Plane_E::same_domain_banking(net* cur_domain)
             if(!success)
                 continue;
         }
-        cout<<"BANKING"<<endl;
+        //cout<<"BANKING"<<endl;
         bank(to_banks[i],FF_lib_bits[bits][0]);
-        cout<<"END"<<endl;
+        //cout<<"END"<<endl;
     }
     
     
@@ -261,7 +263,7 @@ void Plane_E::same_domain_banking(net* cur_domain)
         i--;
     }
     */
-   cout<<"END"<<endl;
+   //cout<<"END"<<endl;
 }
 
 vector<Inst*> Plane_E::get_same_domain_FFs(net* cur)
@@ -280,15 +282,16 @@ vector<Inst*> Plane_E::get_same_domain_FFs(net* cur)
 
 vector<Inst*> Plane_E::get_same_domain_FFs(Inst* cur)
 {
-    net* cur_net = cur->CLK[0]->belong_net;
+    vector<net*> cur_net = cur->CLK[0]->belong_nets;
     list<Inst*> List;
-    for(Pin* p:cur_net->CLKs)
-    {
-        if(p->type == 'C')
+    for(int i = 0 ; i < cur_net.size() ; i++)
+        for(Pin* p:cur_net[i]->CLKs)
         {
-            List.push_back(p->belong_Inst);
+            if(p->type == 'C')
+            {
+                List.push_back(p->belong_Inst);
+            }
         }
-    }
 
     return vector<Inst*>{List.begin(),List.end()};
 }
@@ -322,8 +325,8 @@ Inst* Plane_E::bank(std::vector<Inst*> to_bank, Inst_data* objective)
         min_util(to_bank[i]);
         min_smooth_util(to_bank[i]);
         remove_Inst(to_bank[i]);
-        cout<<*to_bank[i]->get_root()<<endl;
-        cout<<to_bank[i]->get_name()<<endl;
+        //cout<<*to_bank[i]->get_root()<<endl;
+        //cout<<to_bank[i]->get_name()<<endl;
         int idx = to_bank[i]->idx;
         FF_list_bank[idx] = FF_list_bank.back();
         FF_list_bank[idx]->idx = idx;
@@ -428,28 +431,28 @@ Inst* Plane_E::bank(std::vector<Inst*> to_bank, Inst_data* objective)
 
     N->idx = FF_list_bank.size();
     FF_list_bank.push_back(N);
-    cout<<"DELETION"<<endl;
+    //cout<<"DELETION"<<endl;
     for(int i = 0 ; i < to_bank.size() ; i++)
     {
-        for(Pin* p:to_bank[i]->Pins)
-            cout<<p->get_name()<<endl;
-        cout<<*to_bank[i]->get_root()<<endl;
-        cout<<to_bank[i]->get_name()<<endl;
-        cout<<endl;
+        //for(Pin* p:to_bank[i]->Pins)
+        //    cout<<p->get_name()<<endl;
+        //cout<<*to_bank[i]->get_root()<<endl;
+        //cout<<to_bank[i]->get_name()<<endl;
+        //cout<<endl;
     }
     for(int i = 1 ; i < to_bank.size() ; i++)
     {
-        cout<<*to_bank[i]->get_root()<<endl;
-        cout<<to_bank[i]->get_name()<<endl;
+        //cout<<*to_bank[i]->get_root()<<endl;
+        //cout<<to_bank[i]->get_name()<<endl;
         delete to_bank[i]->get_root();
         delete to_bank[i];
     }
-    cout<<"RETURN"<<endl;
+    //cout<<"RETURN"<<endl;
     slack_propagation(N);
     
     add_util(N);
     add_smooth_util(N);
-    cout<<"RETURN"<<endl;
+    //cout<<"RETURN"<<endl;
     return N;
 }
 
@@ -481,8 +484,7 @@ std::vector<Inst*> Plane_E::debank(Inst* to_debank, std::vector<Inst_data*> obje
         Point newLD = to_debank->LeftDown();
         new_Insts.push_back(new Inst(name,newLD,objectives[i],p,"NO PIN COPY"));
     }
-    vector<Pin> data_ins,data_out;
-    Pin clk;
+
 
 
     int de_cnt = 0;
@@ -538,16 +540,16 @@ std::vector<Inst*> Plane_E::debank(Inst* to_debank, std::vector<Inst_data*> obje
     for(int i = 0 ; i < new_Insts.size() ; i++)
         slack_propagation(new_Insts[i]);
     
-    cout<<"DEBANK RESULT"<<endl;
+    //cout<<"DEBANK RESULT"<<endl;
     for(int i = 0 ; i < new_Insts.size() ; i++)
     {
         new_Insts[i]->idx = FF_list_bank.size();
         FF_list_bank.push_back(new_Insts[i]);
-        cout<<new_Insts[i]->get_name()<<endl;
-        for(Pin* p : new_Insts[i]->Pins)
-            cout<<p->get_name()<<endl;
+        //cout<<new_Insts[i]->get_name()<<endl;
+        //for(Pin* p : new_Insts[i]->Pins)
+        //    cout<<p->get_name()<<endl;
     }
-    cout<<endl;
+    //cout<<endl;
     delete to_debank->get_root();
     delete to_debank;
 
@@ -556,10 +558,273 @@ std::vector<Inst*> Plane_E::debank(Inst* to_debank, std::vector<Inst_data*> obje
 
 void Plane_E::legality_look_ahead_banking()
 {
-    for(net* contain_clk_net : clk_net_list)
+    vector<pair<Inst*,set<pair<double,Inst*>>>> k_mean_list;
+    list<pair<Inst*,set<pair<double,Inst*>>>> tmp_list;
+    for(int i = 0 ; i < net_list.size() ; i++)
     {
-        legality_look_ahead_banking(contain_clk_net);
+        vector<pair<Inst*,set<pair<double,Inst*>>>> T = min_total_displacement_k_mean(net_list[i]);
+        tmp_list.insert(tmp_list.end(),T.begin(),T.end());
     }
+    k_mean_list = vector<pair<Inst*,set<pair<double,Inst*>>>>{tmp_list.begin(),tmp_list.end()};
+    vector<Inst*> still_exist(k_mean_list.size(),NULL);
+    for(int i = 0 ; i < still_exist.size() ; i++)
+        still_exist[i] = k_mean_list[i].first;
+    
+    vector<vector<Inst*>> to_banks(k_mean_list.size(),vector<Inst*>{});
+    int bank_bit = min_cost_per_bit->bits;
+
+
+    for(int i = 0 ; i < k_mean_list.size() ; i++)
+    {
+        auto itr = find(still_exist.begin(),still_exist.end(),k_mean_list[i].first);
+        if(itr == still_exist.end())
+            continue;
+        
+        //cout<<"CURRENT FF: "<<k_mean_list[i].first->get_name()<<endl;
+
+        //get the k nearest FFs
+        to_banks[i].push_back(k_mean_list[i].first);
+        int bit_max = FF_lib_bits.size()-1;
+        int cur_bit = 0;
+        for(auto& neighbor:k_mean_list[i].second)
+        {
+            if(cur_bit == bit_max)
+                break;
+            if(cur_bit + neighbor.second->INs.size() > bit_max)
+                break;
+            cur_bit+= neighbor.second->INs.size();
+
+            itr = find(still_exist.begin(),still_exist.end(),neighbor.second);
+            if(itr == still_exist.end())
+                continue;
+            cur_bit += neighbor.second->INs.size();
+            to_banks[i].push_back(neighbor.second);
+        }
+
+        //search for usable tile
+        
+
+        //from all the potential insertable find the best loc
+        double best_delta = 0;
+        vector<Inst*> best_closest;
+        Tile best_to_insert;
+        Inst_data* to_type;
+        for(int BIT = FF_lib_bits.size()-1 ; BIT > 1 ; BIT--)
+        {
+            int bit_width = __INT_MAX__;
+            int bit_height = __INT_MAX__;
+            int max_height = -1;
+            for(int j = 0 ; j < FF_lib_bits[BIT].size() ; j++)
+            {
+                if(FF_lib_bits[BIT][j]->width < bit_width)
+                    bit_width = FF_lib_bits[BIT][j]->width;
+                if(FF_lib_bits[BIT][j]->height < bit_height)
+                    bit_height = FF_lib_bits[BIT][j]->height;  
+                if(FF_lib_bits[BIT][j]->height > max_height)
+                    max_height = FF_lib_bits[BIT][j]->height;  
+            }
+            if(FF_lib_bits[BIT].size() == 0)
+                continue;
+            
+            
+
+            //cout<<"BIT: "<<BIT<<endl;
+            vector<Inst*> closest = get_n_cloest_FF(to_banks[i],Tile(Point(__INT_MAX__,__INT_MAX__),Point(__INT_MAX__,__INT_MAX__)),BIT);
+            //cout<<"CLOSEST SIZE: "<<closest.size()<<endl;
+            int true_bits = 0;
+            for(auto closest_FF:closest)
+                true_bits += closest_FF->INs.size();
+            //cout<<"TRUE BITS: "<<true_bits<<endl;
+            if(true_bits != BIT)
+                continue;
+
+            
+            //search for usable tile
+
+            Tile max_size(Point(__INT_MAX__,__INT_MAX__),Point(-__INT_MAX__,-__INT_MAX__));
+            for(auto FF: to_banks[i])
+            {
+                if(FF->LeftDown().x < max_size.coord[0].x)
+                    max_size.coord[0].x = FF->LeftDown().x;
+                if(FF->LeftDown().y < max_size.coord[0].y)
+                    max_size.coord[0].y = FF->LeftDown().y;
+                if(FF->LeftDown().x + (FF->corr_data->width/unit_move_x)+1 > max_size.coord[1].x)
+                    max_size.coord[1].x = FF->LeftDown().x + (FF->corr_data->width/unit_move_x)+1;
+                if(FF->LeftDown().y + (FF->corr_data->height/unit_move_y)+1 > max_size.coord[1].y)
+                    max_size.coord[1].y = FF->LeftDown().y + (FF->corr_data->height/unit_move_y)+1;
+            }
+            if(BIT == 1)
+            {
+                max_size.coord[1].x += width(&max_size)*2;
+                if(max_size.coord[1].x >= Width)
+                    max_size.coord[1].x = Width -1;
+                max_size.coord[0].x -= width(&max_size)*2;
+                if(max_size.coord[0].x <= 0)
+                    max_size.coord[0].x = 1;
+                max_size.coord[1].y += height(&max_size)*2;
+                if(max_size.coord[1].y >= Height)
+                    max_size.coord[1].y = Height -1;
+                max_size.coord[0].y -= height(&max_size)*2;
+                if(max_size.coord[0].y <= 1)
+                    max_size.coord[0].y = 1;
+            }
+            for(auto rm : closest)
+                remove_Inst(rm);
+            /*
+            max_size.coord[1].x += width(&max_size)*2;
+            if(max_size.coord[1].x > Width)
+                max_size.coord[1].x = Width -1;
+            max_size.coord[0].x -= width(&max_size)*2;
+            if(max_size.coord[0].x < 0)
+                max_size.coord[0].x = 1;
+            max_size.coord[1].y += height(&max_size)*2;
+            if(max_size.coord[1].y > Height)
+                max_size.coord[1].y = Height -1;
+            max_size.coord[0].y -= height(&max_size)*2;
+            if(max_size.coord[0].y < 0)
+                max_size.coord[0].y = 1;
+            */
+            //cout<<"MAX SIZE "<<max_size<<endl;
+            vector<Tile*> space_list = getSpaceTileInRegion(&max_size);
+            //cout<<"SPACE LIST SIZE: "<<space_list.size()<<endl;
+            space_list = remove_not_on_site(space_list);
+            //cout<<"SPACE LIST SIZE: "<<space_list.size()<<endl;
+            list<Tile> potential_insertable = region_insertable(space_list,bit_width,bit_height,max_height); 
+
+            //cout<<"POTENTIAL INSERTABLE SIZE: "<<potential_insertable.size()<<endl;
+            if(potential_insertable.size() == 0)
+            {
+                for(auto mk : closest)
+                    insert_inst(mk);
+                continue;
+            }
+            
+            Tile* start = point_finding(closest[0]->LeftDown());
+            //e.o.s.
+            for(auto& tile:potential_insertable)
+            {
+
+                vector<Point> closest_point;
+                closest_point.resize(closest.size(),Point(__INT_MAX__,__INT_MAX__));
+                for(int j = 0 ; j < closest.size() ; j++)
+                    closest_point[j] = closest[j]->LeftDown();
+                
+                double delta_bit = 0;
+                vector<Inst*> closest_tile;
+                Inst_data* to_type_in_tile;
+                for(int j = 0 ; j <  FF_lib_bits[BIT].size() ; j++)
+                {
+                    /*
+                    cout<<"TRY "<<FF_lib_bits[BIT][j]->name<<endl;
+                    cout<<"WIDTH: "<<width(&tile)<<endl;
+                    cout<<"HEIGHT: "<<height(&tile)<<endl;
+                    cout<<"FF WIDTH: "<<FF_lib_bits[BIT][j]->width<<endl;
+                    cout<<"FF HEIGHT: "<<FF_lib_bits[BIT][j]->height<<endl;
+                    */
+                    if(FF_lib_bits[BIT][j]->width > width(&tile) || FF_lib_bits[BIT][j]->height > height(&tile))
+                        continue;
+                    Tile search = Tile(LD(&tile),FF_lib_bits[BIT][j]->height,FF_lib_bits[BIT][j]->width);
+                    if(!checkAllSpace(&search,start))
+                        continue;
+                    Tile psu(tile.coord[0],FF_lib_bits[BIT][j]->height,FF_lib_bits[BIT][j]->width);
+                    double cost = 0;
+                    for(auto closest_FF:closest)
+                    {
+                        cost -= beta * closest_FF->corr_data->power + gamma * closest_FF->corr_data->width * closest_FF->corr_data->height;//+alpha * closest_FF->INs.size() * closest_FF->corr_data->QpinDelay;
+                    }
+                    cost += beta * FF_lib_bits[BIT][j]->power + gamma * FF_lib_bits[BIT][j]->width * FF_lib_bits[BIT][j]->height; //+alpha * BIT * FF_lib_bits[BIT][j]->QpinDelay;
+                    if(cost < delta_bit)
+                    {
+                        closest_tile = closest;
+                        delta_bit = cost;
+                        to_type_in_tile = FF_lib_bits[BIT][j];
+                    }
+                    break;
+                }
+                double prev_n_slack = negative_slack;
+                for(auto neighbor:closest)
+                {
+                    set_and_propagate(neighbor,LD(&tile));
+                }
+                double n_slack = negative_slack;
+                double time_cost = alpha * (prev_n_slack - n_slack);
+                for(int j = 0 ; j < closest.size() ; j++)
+                {
+                    set_and_propagate(closest[j],closest_point[j]);
+                }
+                if(time_cost + delta_bit < best_delta)
+                {
+                    //cout<<"UPDATE"<<endl;
+                    best_delta = time_cost;
+                    best_closest = closest_tile;
+                    best_to_insert = tile;
+                    to_type = to_type_in_tile;
+                    
+                    //cout<<to_type->bits<<endl;
+                }
+            }  
+            for(auto mk : closest)
+                insert_inst(mk);
+        }
+
+        if(best_closest.size() == 0)
+        {
+            //cout<<"NO CLOSEST"<<endl;
+            continue;
+        }
+        to_banks[i] = best_closest;
+        for(auto rm : best_closest)
+            remove_Inst(rm);
+        //cout<<"TRY TO BANK "<<to_banks[i].size()<<endl;
+        //for(int j = 0 ; j < to_banks[i].size() ; j++)
+        //{
+            //cout<<to_banks[i][j]->get_name()<<endl;
+        //}
+        if(to_type == NULL)
+        {
+            //cout<<"NO TYPE "<<best_delta<<endl;
+            continue;
+        }
+        //cout<<to_type->name<<endl;
+        Inst* to_inst = bank(to_banks[i],to_type);
+        //cout<<"INSERT"<<endl;
+        set_and_propagate(to_inst,best_to_insert.coord[0]);
+        /*
+        cout<<"TO INSERT LOC AND SIZE"<<endl;
+        cout<<best_to_insert.coord[0]<<endl;
+        cout<<best_to_insert.coord[1]<<endl;
+        cout<<width(&best_to_insert)<<endl;
+        cout<<height(&best_to_insert)<<endl;
+        cout<<"CURRENT SIZE"<<endl;
+        cout<<to_inst->get_root()->coord[0]<<endl;
+        cout<<to_inst->get_root()->coord[1]<<endl;
+        cout<<width(to_inst)<<endl;
+        cout<<height(to_inst)<<endl;
+        */
+        if(!insert_inst(to_inst))
+        {
+            //cout<<*to_inst->get_root()<<endl;
+            //cout<<best_to_insert<<endl;
+            //cout<<"INSERT FAIL"<<endl;
+            exit(1);
+        }
+        //cout<<"END"<<endl;
+        for(auto to_erase : to_banks[i])
+        {
+            auto itr = find(still_exist.begin(),still_exist.end(),to_erase);
+            if(itr != still_exist.end())
+                still_exist.erase(itr);
+        }
+        cout<<"negative_slack   "<<negative_slack<<endl;
+        cout<<"positive_slack   "<<positive_slack<<endl;
+        cout<<"COST "<<cost()<<endl;
+        cout<<"violated_bins_cnt    "<<violated_bins_cnt<<endl;
+        cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
+
+    }
+
+    //cout<<"END OF NET BANKING"<<endl;
+    
 }
 
 vector<Inst* > get_n_cloest_FF(vector<Inst*> to_banks,Tile tile, int bits)
@@ -618,6 +883,8 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
     
     vector<vector<Inst*>> to_banks(k_mean_list.size(),vector<Inst*>{});
     int bank_bit = min_cost_per_bit->bits;
+
+
     for(int i = 0 ; i < k_mean_list.size() ; i++)
     {
         auto itr = find(still_exist.begin(),still_exist.end(),k_mean_list[i].first);
@@ -653,18 +920,19 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
         vector<Inst*> best_closest;
         Tile best_to_insert;
         Inst_data* to_type;
-        Tile* start = point_finding(to_banks[i][0]->LeftDown());
         for(int BIT = FF_lib_bits.size()-1 ; BIT > 1 ; BIT--)
         {
             int bit_width = __INT_MAX__;
             int bit_height = __INT_MAX__;
-
+            int max_height = -1;
             for(int j = 0 ; j < FF_lib_bits[BIT].size() ; j++)
             {
                 if(FF_lib_bits[BIT][j]->width < bit_width)
                     bit_width = FF_lib_bits[BIT][j]->width;
                 if(FF_lib_bits[BIT][j]->height < bit_height)
                     bit_height = FF_lib_bits[BIT][j]->height;  
+                if(FF_lib_bits[BIT][j]->height > max_height)
+                    max_height = FF_lib_bits[BIT][j]->height;  
             }
             if(FF_lib_bits[BIT].size() == 0)
                 continue;
@@ -681,8 +949,7 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
             if(true_bits != BIT)
                 continue;
 
-            for(auto rm : closest)
-                remove_Inst(rm);
+            
             //search for usable tile
 
             Tile max_size(Point(__INT_MAX__,__INT_MAX__),Point(-__INT_MAX__,-__INT_MAX__));
@@ -697,6 +964,23 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
                 if(FF->LeftDown().y + (FF->corr_data->height/unit_move_y)+1 > max_size.coord[1].y)
                     max_size.coord[1].y = FF->LeftDown().y + (FF->corr_data->height/unit_move_y)+1;
             }
+            if(BIT == 1)
+            {
+                max_size.coord[1].x += width(&max_size)*2;
+                if(max_size.coord[1].x >= Width)
+                    max_size.coord[1].x = Width -1;
+                max_size.coord[0].x -= width(&max_size)*2;
+                if(max_size.coord[0].x <= 0)
+                    max_size.coord[0].x = 1;
+                max_size.coord[1].y += height(&max_size)*2;
+                if(max_size.coord[1].y >= Height)
+                    max_size.coord[1].y = Height -1;
+                max_size.coord[0].y -= height(&max_size)*2;
+                if(max_size.coord[0].y <= 1)
+                    max_size.coord[0].y = 1;
+            }
+            for(auto rm : closest)
+                remove_Inst(rm);
             /*
             max_size.coord[1].x += width(&max_size)*2;
             if(max_size.coord[1].x > Width)
@@ -711,13 +995,14 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
             if(max_size.coord[0].y < 0)
                 max_size.coord[0].y = 1;
             */
-            cout<<"MAX SIZE "<<max_size<<endl;
+            //cout<<"MAX SIZE "<<max_size<<endl;
             vector<Tile*> space_list = getSpaceTileInRegion(&max_size);
-            cout<<"SPACE LIST SIZE: "<<space_list.size()<<endl;
+           // cout<<"SPACE LIST SIZE: "<<space_list.size()<<endl;
             space_list = remove_not_on_site(space_list);
             //cout<<"SPACE LIST SIZE: "<<space_list.size()<<endl;
-            list<Tile> potential_insertable = region_insertable(space_list,bit_width,bit_height); 
-            cout<<"POTENTIAL INSERTABLE SIZE: "<<potential_insertable.size()<<endl;
+            list<Tile> potential_insertable = region_insertable(space_list,bit_width,bit_height,max_height); 
+
+            //cout<<"POTENTIAL INSERTABLE SIZE: "<<potential_insertable.size()<<endl;
             if(potential_insertable.size() == 0)
             {
                 for(auto mk : closest)
@@ -725,9 +1010,11 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
                 continue;
             }
             
+            Tile* start = point_finding(closest[0]->LeftDown());
             //e.o.s.
             for(auto& tile:potential_insertable)
             {
+
                 vector<Point> closest_point;
                 closest_point.resize(closest.size(),Point(__INT_MAX__,__INT_MAX__));
                 for(int j = 0 ; j < closest.size() ; j++)
@@ -746,6 +1033,9 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
                     cout<<"FF HEIGHT: "<<FF_lib_bits[BIT][j]->height<<endl;
                     */
                     if(FF_lib_bits[BIT][j]->width > width(&tile) || FF_lib_bits[BIT][j]->height > height(&tile))
+                        continue;
+                    Tile search = Tile(LD(&tile),FF_lib_bits[BIT][j]->height,FF_lib_bits[BIT][j]->width);
+                    if(!checkAllSpace(&search,start))
                         continue;
                     Tile psu(tile.coord[0],FF_lib_bits[BIT][j]->height,FF_lib_bits[BIT][j]->width);
                     double cost = 0;
@@ -790,17 +1080,17 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
 
         if(best_closest.size() == 0)
         {
-            cout<<"NO CLOSEST"<<endl;
+            //cout<<"NO CLOSEST"<<endl;
             continue;
         }
         to_banks[i] = best_closest;
         for(auto rm : best_closest)
             remove_Inst(rm);
         //cout<<"TRY TO BANK "<<to_banks[i].size()<<endl;
-        for(int j = 0 ; j < to_banks[i].size() ; j++)
-        {
-            cout<<to_banks[i][j]->get_name()<<endl;
-        }
+        //for(int j = 0 ; j < to_banks[i].size() ; j++)
+        //{
+            //cout<<to_banks[i][j]->get_name()<<endl;
+        //}
         if(to_type == NULL)
         {
             //cout<<"NO TYPE "<<best_delta<<endl;
@@ -823,7 +1113,12 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
         cout<<height(to_inst)<<endl;
         */
         if(!insert_inst(to_inst))
+        {
+            //cout<<*to_inst->get_root()<<endl;
+            //cout<<best_to_insert<<endl;
+            //cout<<"INSERT FAIL"<<endl;
             exit(1);
+        }
         //cout<<"END"<<endl;
         for(auto to_erase : to_banks[i])
         {
@@ -838,17 +1133,18 @@ void Plane_E::legality_look_ahead_banking(net* cur_domain)
         cout<<"smoothen_bin_util    "<<smoothen_bin_util<<endl;
 
     }
-    cout<<"END OF NET BANKING"<<endl;
+
+    //cout<<"END OF NET BANKING"<<endl;
     
 }
 
-list<Tile> Plane_E::region_insertable(vector<Tile*> space_list,int req_width,int req_height)
+list<Tile> Plane_E::region_insertable(vector<Tile*> space_list,int req_width,int req_height, int max_height)
 {
 
     list<Tile> insertable;
     for(int i = 0 ; i < space_list.size() ; i++)
     {
-        list<Tile> region = region_insertable(space_list[i],req_width,req_height);
+        list<Tile> region = region_insertable(space_list[i],req_width,req_height,max_height);
         insertable.insert(insertable.end(), region.begin(), region.end());
     }
     
@@ -870,7 +1166,7 @@ list<Tile> Plane_E::region_insertable(vector<Tile*> space_list)
     list<Tile> insertable;
     for(int i = 0 ; i < space_list.size() ; i++)
     {
-        list<Tile> region = region_insertable(space_list[i],min_width,min_height);
+        list<Tile> region = region_insertable(space_list[i],min_width,min_height,__INT_MAX__);
         insertable.insert(insertable.end(), region.begin(), region.end());
     }
     
@@ -878,9 +1174,10 @@ list<Tile> Plane_E::region_insertable(vector<Tile*> space_list)
 }
 
 #include<stack>
-list<Tile> Plane_E::region_insertable(Tile* space,int min_width,int min_height)
+list<Tile> Plane_E::region_insertable(Tile* space,int min_width,int min_height,int max_height)
 {
     list<Tile> accepted_list;
+    accepted_list.clear();
 	//include : the tile that is found must include this tile;
 	//objective : the height/width of the tile
 	stack<Tile> searching_list;
@@ -905,15 +1202,19 @@ list<Tile> Plane_E::region_insertable(Tile* space,int min_width,int min_height)
 				continue;
             if(height(&to_find) >= min_height)
                 accepted_list.push_back(to_find);
+            if(height(&to_find) >= max_height)
+                continue;
 			searching_list.push(to_find);
 		}
 	}
 
-    vector<Tile> accepted_list_vec{accepted_list.begin(),accepted_list.end()};
+    vector<Tile> accepted_list_vec;
+    accepted_list_vec.clear();
+    accepted_list_vec = vector<Tile>{accepted_list.begin(),accepted_list.end()};
     //make the LD on site
     for( int i = 0 ; i < accepted_list_vec.size() ; i++)
     {
-        auto candicate = accepted_list_vec[i];
+        Tile& candicate = accepted_list_vec[i];
         int y_idx = placement_row_idx(candicate.coord[0]);
         int x_idx = (candicate.coord[0].x - PlacementRows[y_idx].left_down.x)/PlacementRows[y_idx].siteWidth;
 
@@ -923,32 +1224,32 @@ list<Tile> Plane_E::region_insertable(Tile* space,int min_width,int min_height)
         
         if(candicate.coord[0].y > PlacementRows.back().left_down.y)
         {
-            accepted_list_vec[i] = accepted_list.back();
+            accepted_list_vec[i] = accepted_list_vec.back();
             accepted_list_vec.pop_back();
             i--;
             continue;
         }
         if(candicate.coord[0].y < PlacementRows.front().left_down.y)
         {
-            accepted_list_vec[i] = accepted_list.back();
+            accepted_list_vec[i] = accepted_list_vec.back();
             accepted_list_vec.pop_back();
             i--;
             continue;
         }
         if(x_idx < 0 || x_idx >= PlacementRows[y_idx].count)
         {
-            accepted_list_vec[i] = accepted_list.back();
+            accepted_list_vec[i] = accepted_list_vec.back();
             accepted_list_vec.pop_back();
             i--;
             continue;
         }
-        x_idx += (candicate.coord[0].x - PlacementRows[y_idx].left_down.x)%PlacementRows[y_idx].siteWidth == 0;
+        if(x_idx < PlacementRows[y_idx].count-1)
+            x_idx += (candicate.coord[0].x - PlacementRows[y_idx].left_down.x)%PlacementRows[y_idx].siteWidth == 0;
         candicate.coord[0].x = PlacementRows[y_idx].left_down.x + x_idx*PlacementRows[y_idx].siteWidth;
         candicate.coord[0].y = PlacementRows[y_idx].left_down.y;
     }
 
     //remove inclusion tiles
-    
     
     for(int i = 0 ; i < accepted_list_vec.size() ; i++)
     {
@@ -958,7 +1259,7 @@ list<Tile> Plane_E::region_insertable(Tile* space,int min_width,int min_height)
                 continue;
             if(accepted_list_vec[i].coord[0].x <= accepted_list_vec[j].coord[0].x && accepted_list_vec[i].coord[1].x >= accepted_list_vec[j].coord[1].x && accepted_list_vec[i].coord[0].y <= accepted_list_vec[j].coord[0].y && accepted_list_vec[i].coord[1].y >= accepted_list_vec[j].coord[1].y)
             {
-                accepted_list_vec[j] = accepted_list.back();
+                accepted_list_vec[j] = accepted_list_vec.back();
                 accepted_list_vec.pop_back();
                 j--;
             }

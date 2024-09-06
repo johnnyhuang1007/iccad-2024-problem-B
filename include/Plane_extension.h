@@ -100,6 +100,8 @@ class Plane_E : public Plane
         bool insert_inst(Inst*, Tile*);//speed up process;
         bool remove_Inst(Inst*);
         void FFs_insertion();
+        bool is_on_site(Inst*);
+        bool is_on_site(Point);
         
         //legality checker
         std::vector<PlacementRow> PlacementRows;
@@ -135,7 +137,7 @@ class Plane_E : public Plane
         Point next_on_site_move(Inst*,std::string,int);
         void robust_slack_optimizer(int);
 
-        void pin_swapping(){};
+        void pin_swapping();
 
         //bin computation
         void add_util(Inst*);
@@ -173,8 +175,8 @@ class Plane_E : public Plane
         void same_domain_debanking(net*);
 
         std::list<Tile> region_insertable(std::vector<Tile*>);
-        std::list<Tile> region_insertable(Tile*,int,int);
-        std::list<Tile> region_insertable(std::vector<Tile*> space_list,int req_width,int req_height);
+        std::list<Tile> region_insertable(Tile*,int,int,int);
+        std::list<Tile> region_insertable(std::vector<Tile*> space_list,int req_width,int req_height,int max_height);
 
         //placer
         double set_on_site();

@@ -13,7 +13,7 @@ struct net;
 struct Pin
 {
 
-    net* belong_net = NULL;
+    std::vector<net*> belong_nets;
     net* clk_belong = NULL; //net or pin? net
 
     std::string org_type;

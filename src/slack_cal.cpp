@@ -80,15 +80,21 @@ void Plane_E::required_time_init()  //it calculate initial slack value and the r
         
         for(Pin* p:FF_list_bank[i]->INs)
         {
-            p->belong_net->set_center();
-            Point HPWL_vec = p->belong_net->center_of_FROMs -  p->abs_loc();
-            HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
+            for(int k = 0 ; k < p->belong_nets.size() ; k++)
+            {
+                p->belong_nets[k]->set_center();
+                Point HPWL_vec = p->belong_nets[k]->center_of_FROMs -  p->abs_loc();
+                HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
+            }
         }
         for(Pin* p:FF_list_bank[i]->OUTs)
         {
-            p->belong_net->set_center();
-            Point HPWL_vec = p->belong_net->center_of_TOs -  p->abs_loc();
-            HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
+            for(int k = 0 ; k < p->belong_nets.size() ; k++)
+            {
+                p->belong_nets[k]->set_center();
+                Point HPWL_vec = p->belong_nets[k]->center_of_TOs -  p->abs_loc();
+                HPWL += abs(HPWL_vec.x) + abs(HPWL_vec.y);
+            }
         }
     }
 }
@@ -138,10 +144,14 @@ void Pin::arrival_time_propagation()
             cur->arrival_time = 0;
             cur->path_seq.clear();
             cur->path_seq.push_back(cur);
-            if(cur->belong_net==NULL)
-                continue;
-            for(int i = 0 ; i < cur->belong_net->TOs.size() ; i++)
-                to_prop.push(cur->belong_net->TOs[i]);
+            for(int k = 0 ; k < cur->belong_nets.size() ; k++)
+            {
+                if(cur->belong_nets[k]==NULL)
+                    continue;
+                for(int i = 0 ; i < cur->belong_nets[k]->TOs.size() ; i++)
+                    to_prop.push(cur->belong_nets[k]->TOs[i]);
+            }
+            
         }
         else if(cur->pin_type[0] =='Q')  //FF output
         {
@@ -151,10 +161,13 @@ void Pin::arrival_time_propagation()
             cur->arrival_time = new_arrival;
             cur->path_seq.clear();
             cur->path_seq.push_back(cur);
-            if(cur->belong_net==NULL)
-                continue;
-            for(int i = 0 ; i < cur->belong_net->TOs.size() ; i++)
-                to_prop.push(cur->belong_net->TOs[i]);
+            for(int k = 0 ; k < cur->belong_nets.size() ; k++)
+            {
+                if(cur->belong_nets[k]==NULL)
+                    continue;
+                for(int i = 0 ; i < cur->belong_nets[k]->TOs.size() ; i++)
+                    to_prop.push(cur->belong_nets[k]->TOs[i]);
+            }
         }
         else if(cur->type == 'O')    //gate output
         {
@@ -192,30 +205,54 @@ void Pin::arrival_time_propagation()
             cur->arrival_time = new_arrival.first;
             cur->path_seq = new_arrival.second->path_seq;
             cur->path_seq.push_back(cur);
-            if(cur->belong_net==NULL)
-                continue;
-            for(int i = 0 ; i < cur->belong_net->TOs.size() ; i++)
-                to_prop.push(cur->belong_net->TOs[i]);
+            for(int k = 0 ; k < cur->belong_nets.size() ; k++)
+            {
+                if(cur->belong_nets[k]==NULL)
+                    continue;
+                for(int i = 0 ; i < cur->belong_nets[k]->TOs.size() ; i++)
+                    to_prop.push(cur->belong_nets[k]->TOs[i]);
+            }
         }
         else if(cur->pin_type == cur->belong_Inst->get_name() && cur->type == 'I')
         {
-            if(cur->belong_net==NULL)
-                continue;
-            double new_arrival = HPWL(cur->belong_net->FROMs[0],cur) + cur->belong_net->FROMs[0]->arrival_time;
+            double new_arrival = -__INT_MAX__;
+            int max_cnt = 0;
+            for(int k = 0 ; k < cur->belong_nets.size() ; k++)
+            {
+                if(cur->belong_nets[k]==NULL)
+                    continue;
+                double tmp = HPWL(cur->belong_nets[k]->FROMs[0],cur) + cur->belong_nets[k]->FROMs[0]->arrival_time;
+                if(tmp > new_arrival)
+                {
+                    new_arrival = tmp;
+                    max_cnt = k;
+                }
+            }
+
             if(cur->arrival_time == new_arrival)
                 continue;
-            cur->path_seq = cur->belong_net->FROMs[0]->path_seq;
+            cur->path_seq = cur->belong_nets[max_cnt]->FROMs[0]->path_seq;
             cur->path_seq.push_back(cur);
             cur->arrival_time = new_arrival;
         }
         else if(cur->pin_type[0] == 'D')
         {
-            if(cur->belong_net==NULL)
-                continue;
-            double new_arrival = HPWL(cur->belong_net->FROMs[0],cur) + cur->belong_net->FROMs[0]->arrival_time;
+            double new_arrival = -__INT_MAX__;
+            int max_cnt = 0;
+            for(int k = 0 ; k < cur->belong_nets.size() ; k++)
+            {
+                if(cur->belong_nets[k]==NULL)
+                    continue;
+                double tmp = HPWL(cur->belong_nets[k]->FROMs[0],cur) + cur->belong_nets[k]->FROMs[0]->arrival_time;
+                if(tmp > new_arrival)
+                {
+                    new_arrival = tmp;
+                    max_cnt = k;
+                }
+            }
             if(cur->arrival_time == new_arrival)
                 continue;
-            cur->path_seq = cur->belong_net->FROMs[0]->path_seq;
+            cur->path_seq = cur->belong_nets[max_cnt]->FROMs[0]->path_seq;
             cur->path_seq.push_back(cur);
             cur->arrival_time = new_arrival;
             string next = cur->pin_type;
@@ -233,12 +270,23 @@ void Pin::arrival_time_propagation()
         }
         else if(cur->type == 'I')    //gate input
         {
-            if(cur->belong_net==NULL)
-                continue;
-            double new_arrival = HPWL(cur->belong_net->FROMs[0],cur) + cur->belong_net->FROMs[0]->arrival_time;
+            double new_arrival = -__INT_MAX__;
+            int max_cnt = 0;
+            for(int k = 0 ; k < cur->belong_nets.size() ; k++)
+            {
+                if(cur->belong_nets[k]==NULL)
+                    continue;
+                double tmp = HPWL(cur->belong_nets[k]->FROMs[0],cur) + cur->belong_nets[k]->FROMs[0]->arrival_time;
+                if(tmp > new_arrival)
+                {
+                    new_arrival = tmp;
+                    max_cnt = k;
+                }
+            }
+            
             if(cur->arrival_time == new_arrival)
                 continue;
-            cur->path_seq = cur->belong_net->FROMs[0]->path_seq;
+            cur->path_seq = cur->belong_nets[max_cnt]->FROMs[0]->path_seq;
             cur->path_seq.push_back(cur);
             cur->arrival_time = new_arrival;
             
@@ -259,6 +307,7 @@ void Plane_E::all_Inst_slack_cal()
     //doesn't make sense
     //for(int i = 0 ; i < evaluation_Pins.size() ; i++)
     //    evaluation_Pins[i]->slack_trace_back();
+    /*
     for(int i = 0 ; i < G_list.size() ; i++)
     {
         for(Pin* p:G_list[i]->Pins)
@@ -291,6 +340,7 @@ void Plane_E::all_Inst_slack_cal()
             }
         }
     }
+    */
 }
 
 void Plane_E::Inst_slack_cal(Inst* cur)
@@ -305,11 +355,14 @@ void Plane_E::pin_slack_cal(Pin* cur)
 {
     if(cur->slack_determined)
         return;
-    net* belongNet = cur->belong_net;
-    
-    if(belongNet == NULL)//redundant pin (found in gate only)
-        return;
-    vector<Pin*> corrOut = belongNet->FROMs;
+        
+    for(int i = 0 ; i < cur->belong_nets.size() ; i++)
+    {
+        net* belongNet = cur->belong_nets[i];
+        if(belongNet == NULL)//redundant pin (found in gate only)
+            continue;
+        vector<Pin*> corrOut = belongNet->FROMs;
+    }
 }
 
 double Pin::get_slack()
@@ -342,13 +395,16 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
         path_seq.clear();
         path_seq.push_back(this);
         vector<double> vals{0.0,0.0};
-        if(this->belong_net==NULL)
-            return vals;
-        for(int i = 0 ; i < belong_net->TOs.size() ; i++)
+        for(int k = 0 ; k < this->belong_nets.size() ; k++)
         {
-            vector<double> tmp = belong_net->TOs[i]->slack_propagation(modified_Pin,0);
-            vals[0] += tmp[0];
-            vals[1] += tmp[1];
+            if(belong_nets[k]==NULL)
+                continue;
+            for(int i = 0 ; i < belong_nets[k]->TOs.size() ; i++)
+            {
+                vector<double> tmp = belong_nets[k]->TOs[i]->slack_propagation(modified_Pin,0);
+                vals[0] += tmp[0];
+                vals[1] += tmp[1];
+            }
         }
         return vals;
     }
@@ -365,13 +421,16 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
         path_seq.clear();
         path_seq.push_back(this);
         vector<double> vals{0.0,0.0};
-        if(this->belong_net==NULL)
-            return vals;
-        for(int i = 0 ; i < belong_net->TOs.size() ; i++)
+        for(int k = 0 ; k < this->belong_nets.size() ; k++)
         {
-            vector<double> tmp = belong_net->TOs[i]->slack_propagation(modified_Pin,0);
-            vals[0] += tmp[0];
-            vals[1] += tmp[1];
+            if(belong_nets[k]==NULL)
+                continue;
+            for(int i = 0 ; i < belong_nets[k]->TOs.size() ; i++)
+            {
+                vector<double> tmp = belong_nets[k]->TOs[i]->slack_propagation(modified_Pin,0);
+                vals[0] += tmp[0];
+                vals[1] += tmp[1];
+            }
         }
         return vals;
     }
@@ -390,42 +449,67 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
         
 
         vector<double> vals{0.0,0.0};
-        if(this->belong_net==NULL)
-            return vals;
-        for(int i = 0 ; i < belong_net->TOs.size() ; i++)
+        for(int k = 0 ; k < this->belong_nets.size() ; k++)
         {
-            vector<double> tmp = belong_net->TOs[i]->slack_propagation(modified_Pin,0);
-            vals[0] += tmp[0];
-            vals[1] += tmp[1];
+            if(belong_nets[k]==NULL)
+                continue;
+            for(int i = 0 ; i < belong_nets[k]->TOs.size() ; i++)
+            {
+                vector<double> tmp = belong_nets[k]->TOs[i]->slack_propagation(modified_Pin,0);
+                vals[0] += tmp[0];
+                vals[1] += tmp[1];
+            }
         }
         return vals;
     }
     else if(pin_type == belong_Inst->get_name() && type == 'I')
     {
-        if(this->belong_net==NULL)
+        double new_arrival = -__INT_MAX__;
+        int max_cnt = 0;
+        for(int k = 0 ; k < this->belong_nets.size() ; k++)
+        {
+            if(this->belong_nets[k]==NULL)
+                continue;
+            if(belong_nets[k]->FROMs.size()!=1)
+                cout<<"??????????"<<endl;
+            double tmp = HPWL(belong_nets[k]->FROMs[0],this) + belong_nets[k]->FROMs[0]->arrival_time;
+            if(tmp > new_arrival)
+            {
+                new_arrival = tmp;
+                max_cnt = k;
+            }
+        }
+        if(new_arrival == -__INT_MAX__)
             return vector<double>{0.0,0.0};
-        if(belong_net->FROMs.size()!=1)
-            cout<<"??????????"<<endl;
-        double new_arrival = HPWL(belong_net->FROMs[0],this) + belong_net->FROMs[0]->arrival_time;
-
-        
         if(arrival_time == new_arrival)
             return vector<double>{0.0,0.0};
-        path_seq = belong_net->FROMs[0]->path_seq;
+        path_seq = belong_nets[max_cnt]->FROMs[0]->path_seq;
         path_seq.push_back(this);
         arrival_time = new_arrival;
         return vector<double>{0.0,0.0};
     }
     else if(pin_type[0] == 'D')
     {
-        if(this->belong_net==NULL)
+        double new_arrival = -__INT_MAX__;
+        int max_cnt = 0;
+        for(int k = 0 ; k < this->belong_nets.size() ; k++)
+        {
+            if(this->belong_nets[k]==NULL)
+                continue;
+            if(belong_nets[k]->FROMs.size()!=1)
+                cout<<"??????????"<<endl;
+            double tmp = HPWL(belong_nets[k]->FROMs[0],this) + belong_nets[k]->FROMs[0]->arrival_time;
+            if(tmp > new_arrival)
+            {
+                new_arrival = tmp;
+                max_cnt = k;
+            }
+        }
+        if(new_arrival == -__INT_MAX__)
             return vector<double>{0.0,0.0};
-        if(belong_net->FROMs.size()!=1)
-            cout<<"??????????"<<endl;
-        double new_arrival = HPWL(belong_net->FROMs[0],this) + belong_net->FROMs[0]->arrival_time;
         if(new_arrival == arrival_time && !start)
             return vector<double>{0.0,0.0};
-        path_seq = belong_net->FROMs[0]->path_seq;
+        path_seq = belong_nets[max_cnt]->FROMs[0]->path_seq;
         path_seq.push_back(this);
         arrival_time = new_arrival;
         slack = require_time - arrival_time;
@@ -462,16 +546,28 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
     {
         if(recursive)
             vector<double>{0.0,0.0};
-        if(this->belong_net==NULL)
+        double new_arrival = -__INT_MAX__;
+        int max_cnt = 0;
+        for(int k = 0 ; k < this->belong_nets.size() ; k++)
+        {
+            if(this->belong_nets[k]==NULL)
+                continue;
+            if(belong_nets[k]->FROMs.size()!=1)
+                cout<<"??????????"<<endl;
+            double tmp = HPWL(belong_nets[k]->FROMs[0],this) + belong_nets[k]->FROMs[0]->arrival_time;
+            if(tmp > new_arrival)
+            {
+                new_arrival = tmp;
+                max_cnt = k;
+            }
+        }
+        if(new_arrival == -__INT_MAX__)
             return vector<double>{0.0,0.0};
-        if(belong_net->FROMs.size()!=1)
-            cout<<"??????????"<<endl;
-        double new_arrival = HPWL(belong_net->FROMs[0],this) + belong_net->FROMs[0]->arrival_time;
         if(arrival_time == new_arrival)
             return vector<double>{0,0};
 
         
-        path_seq = belong_net->FROMs[0]->path_seq;
+        path_seq = belong_nets[max_cnt]->FROMs[0]->path_seq;
         path_seq.push_back(this);
         arrival_time = new_arrival;
         vector<double> vals{0.0,0.0};
@@ -492,19 +588,20 @@ vector<double> Pin::slack_propagation(Pin* modified_Pin,bool start) //it return 
 
 void Pin::slack_trace_back()//it is not recursive function, it trace back to its relative source only
 {
-    for(int i = 0 ; i < belong_net->FROMs.size() ; i++)
+    for(int k = 0 ; k < belong_nets.size() ; k++)
+    for(int i = 0 ; i < belong_nets[k]->FROMs.size() ; i++)
     {
-        double newVal = slack - HPWL(belong_net->FROMs[i],this);
-        if(!belong_net->FROMs[i]->slack_determined)
-            belong_net->FROMs[i]->slack = newVal;
-        else if(belong_net->FROMs[i]->slack != newVal)
+        double newVal = slack - HPWL(belong_nets[k]->FROMs[i],this);
+        if(!belong_nets[k]->FROMs[i]->slack_determined)
+            belong_nets[k]->FROMs[i]->slack = newVal;
+        else if(belong_nets[k]->FROMs[i]->slack != newVal)
         {
-            cout<<"TRACE BACK AND GET DIFFERENT VALUE: "<<belong_net->FROMs[i]->slack<<"   "<<newVal<<endl;
-            cout<<" "<<belong_net->FROMs[i]->belong_Inst->get_name()<<"/"<<belong_net->FROMs[i]->pin_type<<endl;
+            cout<<"TRACE BACK AND GET DIFFERENT VALUE: "<<belong_nets[k]->FROMs[i]->slack<<"   "<<newVal<<endl;
+            cout<<" "<<belong_nets[k]->FROMs[i]->belong_Inst->get_name()<<"/"<<belong_nets[k]->FROMs[i]->pin_type<<endl;
         }
         else
-            cout<<"TRACE BACK AND GET SAME VALUE: "<<belong_net->FROMs[i]->slack<<"   "<<newVal<<endl;
-        belong_net->FROMs[i]->slack_determined = 1;
+            cout<<"TRACE BACK AND GET SAME VALUE: "<<belong_nets[k]->FROMs[i]->slack<<"   "<<newVal<<endl;
+        belong_nets[k]->FROMs[i]->slack_determined = 1;
     }
 }
 
@@ -545,12 +642,13 @@ void Pin::slack_cal()
     {   
         Pin* corr_pin = NULL;
         double max_slack = -999999999999;
-        for(int i = 0 ; i < belong_net->FROMs.size() ; i++)
-        {
-            double delay = belong_net->FROMs[i]->get_slack() + HPWL(belong_net->FROMs[i],this);
-            if(delay > max_slack)
-                max_slack = delay;
-        }
+        for(int k = 0 ; k < belong_nets.size() ; k++)
+            for(int i = 0 ; i < belong_nets[k]->FROMs.size() ; i++)
+            {
+                double delay = belong_nets[k]->FROMs[i]->get_slack() + HPWL(belong_nets[k]->FROMs[i],this);
+                if(delay > max_slack)
+                    max_slack = delay;
+            }
         slack = max_slack;
     }
     slack_determined = 1;
@@ -564,7 +662,21 @@ Point Pin::abs_loc()
 
 double HPWL(Pin* a, Pin* b)
 {
-    if(a->belong_net!=b->belong_net)
+    net* this_net = NULL;
+    for(int i = 0 ; i < a->belong_nets.size() ; i++)
+    {
+        for(int j = 0 ; j < b->belong_nets.size() ; j++)
+        {
+            if(a->belong_nets[i] == b->belong_nets[j])
+            {
+                this_net = a->belong_nets[i];
+                break;
+            }
+        }
+        if(this_net != NULL)
+            break;
+    }
+    if(this_net == NULL)
     {
         cout<<"THEIR CORRISPONDED NET ARE DIFFERENT"<<endl;
         cout<<a->get_name()<<"  "<<b->get_name()<<endl;
@@ -572,7 +684,7 @@ double HPWL(Pin* a, Pin* b)
     }
     Point diff = a->abs_loc() - b->abs_loc();
 
-    return a->belong_net->displacement_delay*(abs(diff.x) + abs(diff.y));
+    return this_net->displacement_delay*(abs(diff.x) + abs(diff.y));
 }
 
 double HPWL(net* cur)

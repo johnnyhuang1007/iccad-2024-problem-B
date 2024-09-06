@@ -3,7 +3,7 @@ using namespace std;
 
 Pin::Pin(const Pin& copy)
 {
-    this->belong_net = copy.belong_net;
+    this->belong_nets = copy.belong_nets;
     this->orginal_Inst = copy.orginal_Inst;
     this->pin_type = copy.pin_type;
     this->org_type = copy.pin_type;

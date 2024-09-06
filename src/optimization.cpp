@@ -189,6 +189,8 @@ double Plane_E::set_on_site()
 {
     for(Inst* FF:FF_list_bank)
     {
+        if(FF->inserted)
+            continue;
         set_and_propagate(FF,closest_Legal_locs(FF->LeftDown()));
     }
 
@@ -290,11 +292,13 @@ double Plane_E::HPWL_optimizer()
     {
         for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
         {
-            FF_list_bank[i]->INs[j]->belong_net->set_weight_center();
+            for(int k = 0 ; k < FF_list_bank[i]->INs[j]->belong_nets.size() ; k++)
+                FF_list_bank[i]->INs[j]->belong_nets[k]->set_weight_center();
         }
         for(int j = 0 ; j < FF_list_bank[i]->OUTs.size() ; j++)
         {
-            FF_list_bank[i]->OUTs[j]->belong_net->set_weight_center();
+            for(int k = 0 ; k < FF_list_bank[i]->OUTs[j]->belong_nets.size() ; k++)
+                FF_list_bank[i]->OUTs[j]->belong_nets[k]->set_weight_center();
         }
         Point P(0,0);
         double Px = 0;
@@ -302,19 +306,26 @@ double Plane_E::HPWL_optimizer()
         double wgt = 0;
         for(int j = 0 ; j < FF_list_bank[i]->INs.size() ; j++)
         {
-            if(FF_list_bank[i]->INs[j]->belong_net->FROMs.size()==0)
-                continue;
-            Px = Px + FF_list_bank[i]->INs[j]->belong_net->center_of_FROMs.x * FF_list_bank[i]->INs[j]->belong_net->FROMs_weight;
-            Py = Py + FF_list_bank[i]->INs[j]->belong_net->center_of_FROMs.y * FF_list_bank[i]->INs[j]->belong_net->FROMs_weight;
-            wgt += FF_list_bank[i]->INs[j]->belong_net->FROMs_weight;
+            for(int k = 0 ; k < FF_list_bank[i]->INs[j]->belong_nets.size() ; k++)
+            {
+                if(FF_list_bank[i]->INs[j]->belong_nets[k]->FROMs.size()==0)
+                    continue;
+                Px = Px + FF_list_bank[i]->INs[j]->belong_nets[k]->center_of_FROMs.x * FF_list_bank[i]->INs[j]->belong_nets[k]->FROMs_weight;
+                Py = Py + FF_list_bank[i]->INs[j]->belong_nets[k]->center_of_FROMs.y * FF_list_bank[i]->INs[j]->belong_nets[k]->FROMs_weight;
+                wgt += FF_list_bank[i]->INs[j]->belong_nets[k]->FROMs_weight;
+            }
         }
         for(int j = 0 ; j < FF_list_bank[i]->OUTs.size()  ; j++)
         {
-            if(FF_list_bank[i]->OUTs[j]->belong_net->TOs.size()==0)
-                continue;
-            Px = Px + FF_list_bank[i]->OUTs[j]->belong_net->center_of_TOs.x * FF_list_bank[i]->OUTs[j]->belong_net->TOs_weight;
-            Py = Py + FF_list_bank[i]->OUTs[j]->belong_net->center_of_TOs.y * FF_list_bank[i]->OUTs[j]->belong_net->TOs_weight;
-            wgt += FF_list_bank[i]->OUTs[j]->belong_net->TOs_weight;
+            for(int k = 0 ; k < FF_list_bank[i]->OUTs[j]->belong_nets.size() ; k++)
+            {
+                if(FF_list_bank[i]->OUTs[j]->belong_nets[k]->TOs.size()==0)
+                    continue;
+                Px = Px + FF_list_bank[i]->OUTs[j]->belong_nets[k]->center_of_TOs.x * FF_list_bank[i]->OUTs[j]->belong_nets[k]->TOs_weight;
+                Py = Py + FF_list_bank[i]->OUTs[j]->belong_nets[k]->center_of_TOs.y * FF_list_bank[i]->OUTs[j]->belong_nets[k]->TOs_weight;
+                wgt += FF_list_bank[i]->OUTs[j]->belong_nets[k]->TOs_weight;
+            }
+            
         }
         P.x = Px/wgt;
         P.y = Py/wgt;
@@ -405,4 +416,36 @@ void Plane_E::loc_randomize()
         
     }
 
+}
+
+void Plane_E::pin_swapping()
+{
+
+    for(auto FF : FF_list_bank)
+    {
+        if(FF->INs.size()<=1)
+            continue;
+        int cnt1 = rand()%FF->INs.size();
+        int cnt2 = rand()%FF->INs.size();
+        while(cnt2 == cnt1)
+            cnt2 = rand()%FF->INs.size();
+        Pin* p1 = FF->INs[cnt1];
+        Pin* p2 = FF->INs[cnt2];
+
+        double prev_cost = cost();
+        swap(p1->relative_loc,p2->relative_loc);
+        swap(p1->pin_type,p2->pin_type);
+        swap(pair_Q(FF,p1)->relative_loc,pair_Q(FF,p1)->relative_loc);
+        swap(pair_Q(FF,p1)->pin_type,pair_Q(FF,p1)->pin_type);
+        p1->slack_propagation();
+        p2->slack_propagation();
+        
+        if(cost() < prev_cost)
+            continue;
+        swap(p1->relative_loc,p2->relative_loc);
+        swap(p1->pin_type,p2->pin_type);
+        swap(pair_Q(FF,p1)->relative_loc,pair_Q(FF,p1)->relative_loc);
+        swap(pair_Q(FF,p1)->pin_type,pair_Q(FF,p1)->pin_type);
+    }
+    cout<<cost()<<endl;
 }
